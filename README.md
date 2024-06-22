@@ -38,3 +38,13 @@ Uvicorn (ASGI server)
 JWT token handling (python-jose)
 Password hashing (passlib
 ```
+
+# API Endpoints
+## Register a new user
+POST /auth/register
+## Log in and receive access and refresh tokens
+POST /auth/login
+## Refresh access token
+POST /auth/refresh-token
+## Get current user details
+GET /auth/users/me
