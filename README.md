@@ -17,3 +17,24 @@ This project implements a basic authentication and authorization system using Fa
 │   ├── __init__.py
 │   └── connection.py   # Database connection setup
 └── main.py             # FastAPI application creation and configuration
+
+```
+
+# Features
+```plaintext
+User registration
+User login
+JWT access and refresh token generation
+Endpoint security with token verification
+Swagger documentation
+```
+
+# Prerequisites
+```plaintext
+Python 3.7+
+FastAPI
+SQLAlchemy
+Uvicorn (ASGI server)
+JWT token handling (python-jose)
+Password hashing (passlib
+```
