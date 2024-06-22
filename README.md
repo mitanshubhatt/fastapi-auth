@@ -41,10 +41,18 @@ Password hashing (passlib
 
 # API Endpoints
 ## Register a new user
+```plaintext
 POST /auth/register
+```
 ## Log in and receive access and refresh tokens
+```plaintext
 POST /auth/login
+```
 ## Refresh access token
+```plaintext
 POST /auth/refresh-token
+```
 ## Get current user details
+```plaintext
 GET /auth/users/me
+```
