@@ -51,7 +51,8 @@ Password hashing (passlib)
 ## Just enter the below commands in your system and the APIs should be available on swagger endpoint : ```localhost:8000/docs```
 
 ```plaintext
-Create a venv using python -m .venv in the project
+python<version> -m venv <your venv name>
+<your venv name>/Scripts/activate.bat
 pip install -r requirements.txt
 python main.py
 ```
