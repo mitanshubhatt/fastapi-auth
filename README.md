@@ -6,17 +6,23 @@ This project implements a basic authentication and authorization system using Fa
 
 ```plaintext
 .
+├── app
+│   ├── __init__.py        # Initializes the app as a package and can include app-wide settings
+│   ├── server.py          # Setup routes, middleware, and other server configurations
 ├── auth
 │   ├── __init__.py
-│   ├── models.py       # Database models
-│   ├── schemas.py      # Pydantic schemas for request and response models
-│   ├── routers.py      # API routers
-│   ├── utils.py        # Utility functions for auth like token generation
-│   └── dependencies.py # Dependency injection for routes
+│   ├── models.py          # Database models, including User and RefreshToken
+│   ├── schemas.py         # Pydantic schemas for request and response models, including user and token schemas
+│   ├── routers.py         # API routers for handling authentication-related endpoints
+│   ├── utils.py           # Utility functions for auth like password hashing and token generation
+│   └── dependencies.py    # Dependency injection for routes, including current user retrieval
 ├── db
 │   ├── __init__.py
-│   └── connection.py   # Database connection setup
-└── main.py             # FastAPI application creation and configuration
+│   └── connection.py      # Database connection setup, possibly using SQLAlchemy
+├── config
+│   ├── __init__.py
+│   └── settings.py        # Configuration settings using pydantic-settings
+└── main.py                # Main application setup and mounting of routers
 
 ```
 
