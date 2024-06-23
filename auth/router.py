@@ -114,7 +114,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(refresh_token, settings.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(refresh_token, settings.secret_key, algorithms=[settings.algorithm])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
