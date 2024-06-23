@@ -1,4 +1,4 @@
-# FastAPI Authentication and Authorization Project
+# FastAPI Authentication and Authorization
 
 This project implements a basic authentication and authorization system using FastAPI, SQLAlchemy, and JWT. It supports user registration, login, and token management (access and refresh tokens).
 
