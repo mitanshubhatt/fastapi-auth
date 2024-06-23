@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt
@@ -27,9 +28,16 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
 
 async def create_refresh_token(data: dict, expires_delta: timedelta, db: AsyncSession):
     expire = datetime.utcnow() + expires_delta
-    token = jwt.encode(data, settings.secret_key, algorithm=settings.algorithm)
+    nonce = os.urandom(16).hex()
+    current_time = datetime.utcnow()
+    extended_data = {
+        **data,
+        "iat": current_time,
+        "nonce": nonce,
+    }
+    token = jwt.encode(extended_data, settings.secret_key, algorithm=settings.algorithm)
     db_refresh_token = RefreshToken(
-        username=data["sub"],
+        user_email=data["sub"],
         token=token,
         expires_at=expire,
         revoked=False

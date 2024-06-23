@@ -91,6 +91,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     refresh_token = await create_refresh_token(
         data={"sub": form_data.username}, expires_delta=refresh_token_expires, db=db
     )
+    
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
@@ -115,8 +116,8 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
     )
     try:
         payload = jwt.decode(refresh_token, settings.secret_key, algorithms=[settings.algorithm])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
 
         # Check token in database
@@ -128,10 +129,11 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
             raise credentials_exception
     except JWTError:
         raise credentials_exception
+        
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = await create_access_token(
-        data={"sub": username}, expires_delta=access_token_expires
+        data={"sub": email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
