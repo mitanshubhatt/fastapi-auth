@@ -40,6 +40,7 @@ Swagger documentation
 # Prerequisites
 ```plaintext
 Python 3.7+
+Docker & Docker compose
 FastAPI
 SQLAlchemy
 Uvicorn (ASGI server)
@@ -48,11 +49,8 @@ Password hashing (passlib)
 ```
 
 # No need to use Curl commands for all API Endpoints
-## Just enter the below commands in your system and the APIs should be available on swagger endpoint : ```localhost:8000/docs```
+## Just enter the below command in your system and the APIs should be available on swagger endpoint : ```localhost:8000/docs```
 
 ```plaintext
-python<version> -m venv <your venv name>
-<your venv name>/Scripts/activate.bat
-pip install -r requirements.txt
-python main.py
+docker-compose up -d
 ```
