@@ -47,20 +47,11 @@ JWT token handling (python-jose)
 Password hashing (passlib)
 ```
 
-# API Endpoints
-## Register a new user
+# No need to use Curl commands for all API Endpoints
+## Just enter the below commands in your system and the APIs should be available on swagger endpoint : ```localhost:8000/docs```
+
 ```plaintext
-POST /auth/register
-```
-## Log in and receive access and refresh tokens
-```plaintext
-POST /auth/login
-```
-## Refresh access token
-```plaintext
-POST /auth/refresh-token
-```
-## Get current user details
-```plaintext
-GET /auth/users/me
+Create a venv using python -m .venv in the project
+pip install -r requirements.txt
+python main.py
 ```
