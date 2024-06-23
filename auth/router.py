@@ -135,7 +135,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
     access_token = await create_access_token(
         data={"sub": email}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
 
