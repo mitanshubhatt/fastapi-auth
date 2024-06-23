@@ -26,6 +26,8 @@ User registration
 User login
 JWT access and refresh token generation
 Endpoint security with token verification
+Access and Refresh token generation
+Revoke the refresh token
 Swagger documentation
 ```
 
@@ -36,7 +38,7 @@ FastAPI
 SQLAlchemy
 Uvicorn (ASGI server)
 JWT token handling (python-jose)
-Password hashing (passlib
+Password hashing (passlib)
 ```
 
 # API Endpoints
