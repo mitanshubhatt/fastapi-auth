@@ -7,7 +7,7 @@ This project implements a basic authentication and authorization system using Fa
 ```plaintext
 .
 ├── app
-│   ├── __init__.py        # Initializes the app as a package and can include app-wide settings
+│   ├── __init__.py        # Initializes the app as a package
 │   ├── server.py          # Setup routes, middleware, and other server configurations
 ├── auth
 │   ├── __init__.py
@@ -18,11 +18,11 @@ This project implements a basic authentication and authorization system using Fa
 │   └── dependencies.py    # Dependency injection for routes, including current user retrieval
 ├── db
 │   ├── __init__.py
-│   └── connection.py      # Database connection setup, possibly using SQLAlchemy
+│   └── connection.py      # Database connection setup using SQLAlchemy
 ├── config
 │   ├── __init__.py
 │   └── settings.py        # Configuration settings using pydantic-settings
-└── main.py                # Main application setup and mounting of routers
+└── main.py                # Main application setup
 
 ```
 
