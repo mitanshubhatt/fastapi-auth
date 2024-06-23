@@ -12,7 +12,7 @@ from db.connection import get_db
 from config.settings import settings
 from auth.models import User, RefreshToken
 from auth.schemas import UserCreate, UserRead, Token
-from auth.utils import get_password_hash, create_access_token, create_refresh_token, authenticate_user, SECRET_KEY, ALGORITHM
+from auth.utils import get_password_hash, create_access_token, create_refresh_token, authenticate_user
 from auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth")
