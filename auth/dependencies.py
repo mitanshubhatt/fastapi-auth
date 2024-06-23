@@ -4,7 +4,7 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.schemas import TokenData
 from db.connection import get_db
-from auth.utils import SECRET_KEY, ALGORITHM
+from config.settings import settings
 from auth.models import User
 from sqlalchemy.future import select
 
@@ -17,14 +17,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user_result = await db.execute(select(User).where(User.username == token_data.username))
+    user_result = await db.execute(select(User).where(User.email == token_data.email))
     user = user_result.scalars().first()
     if user is None:
         raise credentials_exception

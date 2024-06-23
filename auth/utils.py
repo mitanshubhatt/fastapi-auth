@@ -1,13 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy.future import select
-from auth.models import User
-
-SECRET_KEY = "oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+from config.settings import settings
+from auth.models import User, RefreshToken
+from sqlalchemy.ext.asyncio import AsyncSession
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -24,18 +22,21 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+async def create_refresh_token(data: dict, expires_delta: timedelta, db: AsyncSession):
+    expire = datetime.utcnow() + expires_delta
+    token = jwt.encode(data, settings.secret_key, algorithm=settings.algorithm)
+    db_refresh_token = RefreshToken(
+        username=data["sub"],
+        token=token,
+        expires_at=expire,
+        revoked=False
+    )
+    db.add(db_refresh_token)
+    await db.commit()
+    return token
 
 async def authenticate_user(db, username: str, password: str):
     user = await db.execute(select(User).where(User.username == username))
