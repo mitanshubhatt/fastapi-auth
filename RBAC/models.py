@@ -9,6 +9,10 @@ class RoleType(enum.Enum):
     ADMIN = "Admin"
     MEMBER = "Member"
 
+class TeamRoleType(enum.Enum):
+    TEAM_ADMIN = "TeamAdmin"
+    MEMBER = "Member"
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -46,6 +50,7 @@ class TeamMember(Base):
     id = Column(Integer, primary_key=True)
     team_id = Column(Integer, ForeignKey("teams.id"))
     user_id = Column(Integer, ForeignKey("users.id"))  # Assuming User model is defined elsewhere with 'id' as PK
+    role = Column(Enum(TeamRoleType), nullable=False)
 
     team = relationship("Team", back_populates="team_members")
     user = relationship("User", back_populates="team_members", foreign_keys=[user_id])

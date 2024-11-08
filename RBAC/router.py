@@ -2,12 +2,15 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import update
+
+
 from db.connection import get_db
 from auth.models import User
-from RBAC.models import Organization, OrganizationUser, Team, TeamMember
+from RBAC.models import Organization, OrganizationUser, Team, TeamMember, RoleType, TeamRoleType
 from RBAC.schemas import OrganizationCreate, OrganizationRead, TeamCreate, TeamRead, OrganizationUserRead, TeamMemberRead
 from auth.dependencies import get_current_user
-from utils.custom_logger import logger  # Import the logger
+from utils.custom_logger import logger
 
 router = APIRouter(prefix="/rbac")
 
@@ -56,10 +59,11 @@ async def assign_user_to_organization(user_email: str, organization_id: int, rol
         user = await db.execute(select(User).where(User.email == user_email))
         user = user.scalars().first()
         organization = await db.get(Organization, organization_id)
+        enum_role = RoleType(role)
         if not user or not organization:
             logger.error("User or Organization not found.")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User or Organization not found")
-        org_user = OrganizationUser(user_id=user.id, organization_id=organization_id, role=role)
+        org_user = OrganizationUser(user_id=user.id, organization_id=organization_id, role=enum_role)
         db.add(org_user)
         await db.commit()
         logger.info(f"User {user_email} assigned to organization {organization_id} with role {role}.")
@@ -72,19 +76,28 @@ async def assign_user_to_organization(user_email: str, organization_id: int, rol
 
 @router.post("/create-team", response_model=TeamRead)
 async def create_team(team: TeamCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user.is_admin:
-        logger.error("Permission denied: User is not an admin.")
+    user_role = await db.execute(
+        select(OrganizationUser.role).where(
+            OrganizationUser.user_id == current_user.id,
+            OrganizationUser.organization_id == team.organization_id
+        )
+    )
+    user_role = user_role.scalar()
+
+    if user_role == RoleType.ADMIN:
+        try:
+            db_team = Team(organization_id=team.organization_id, product_id=team.product_id, name=team.name)
+            db.add(db_team)
+            await db.commit()
+            await db.refresh(db_team)
+            logger.info(f"Team '{team.name}' created successfully.")
+            return TeamRead.from_orm(db_team)
+        except Exception as e:
+            logger.error(f"Error creating team: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+    else:
+        logger.error("Permission denied: User is not an organization admin.")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    try:
-        db_team = Team(organization_id=team.organization_id, product_id=team.product_id, name=team.name)
-        db.add(db_team)
-        await db.commit()
-        await db.refresh(db_team)
-        logger.info(f"Team '{team.name}' created successfully.")
-        return TeamRead.from_orm(db_team)
-    except Exception as e:
-        logger.error(f"Error creating team: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
 @router.post("/assign-user-to-team")
@@ -107,25 +120,27 @@ async def assign_user_to_team(user_email: str, team_id: int, db: AsyncSession = 
         - 404 Not Found: If the user or team is not found in the database.
         - 500 Internal Server Error: If an unexpected error occurs during the operation.
     """
-    if not current_user.is_admin:
-        logger.error("Permission denied: User is not an admin.")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    try:
+    user_role = await db.execute(
+        select(TeamMember.role).where(
+            TeamMember.user_id == current_user.id,
+            TeamMember.team_id == team_id
+        )
+    )
+    user_role = user_role.scalar()
+
+    if user_role == TeamRoleType.TEAM_ADMIN:
         # Fetch the user by email
         user = await db.execute(select(User).where(User.email == user_email))
         user = user.scalars().first()
-        team = await db.get(Team, team_id)
-        if not user or not team:
-            logger.error("User or Team not found.")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User or Team not found")
-        team_member = TeamMember(user_id=user.id, team_id=team_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        team_member = TeamMember(team_id=team_id, user_id=user.id, role=TeamRoleType.MEMBER)
         db.add(team_member)
         await db.commit()
-        logger.info(f"User {user_email} assigned to team {team_id}.")
-        return {"message": "User assigned to team successfully"}
-    except Exception as e:
-        logger.error(f"Error assigning user to team: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+        return {"message": "User added to team successfully"}
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
 
 
 
@@ -246,3 +261,88 @@ async def get_user_role(organization_id: int, db: AsyncSession = Depends(get_db)
         return {"role": role}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/change-user-role")
+async def change_user_role(user_id: int, organization_id: int, new_role: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Change the role of a user in an organization.
+
+    Parameters:
+    - user_id (int): The ID of the user whose role is to be changed.
+    - organization_id (int): The ID of the organization.
+    - new_role (str): The new role to assign to the user.
+
+    Returns:
+    - dict: A message indicating the success of the operation.
+
+    Raises:
+    - HTTPException: If the current user is not authorized to change roles or if the user/organization is not found.
+    """
+    user_role = await db.execute(
+        select(OrganizationUser.role).where(
+            OrganizationUser.user_id == current_user.id,
+            OrganizationUser.organization_id == organization_id
+        )
+    )
+    user_role = user_role.scalar()
+
+    if user_role != RoleType.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+
+    try:
+        result = await db.execute(
+            update(OrganizationUser)
+            .where(OrganizationUser.user_id == user_id, OrganizationUser.organization_id == organization_id)
+            .values(role=RoleType(new_role))
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User or Organization not found")
+        await db.commit()
+        return {"message": "User role updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+@router.put("/change-team-role")
+async def change_team_role(user_id: int, team_id: int, new_role: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Change the role of a user in a team.
+
+    Parameters:
+    - user_id (int): The ID of the user whose role is to be changed.
+    - team_id (int): The ID of the team.
+    - new_role (str): The new role to assign to the user.
+
+    Returns:
+    - dict: A message indicating the success of the operation.
+
+    Raises:
+    - HTTPException: If the current user is not authorized to change roles or if the user/team is not found.
+    """
+    # Check if the current user is a team admin
+    user_role = await db.execute(
+        select(TeamMember.role).where(
+            TeamMember.user_id == current_user.id,
+            TeamMember.team_id == team_id
+        )
+    )
+    user_role = user_role.scalar()
+
+    if user_role != TeamRoleType.TEAM_ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+
+    try:
+        result = await db.execute(
+            update(TeamMember)
+            .where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+            .values(role=TeamRoleType(new_role))
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User or Team not found")
+        await db.commit()
+        return {"message": "User role updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
