@@ -6,24 +6,39 @@ This project implements a basic authentication and authorization system using Fa
 
 ```plaintext
 .
+├── Dockerfile
+├── RBAC
+│   ├── __init__.py
+│   ├── models.py
+│   ├── router.py
+│   └── schemas.py
+├── README.md
 ├── app
-│   ├── __init__.py        # Initializes the app as a package
-│   ├── server.py          # Setup routes, middleware, and other server configurations
+│   ├── __init__.py
+│   └── server.py
 ├── auth
 │   ├── __init__.py
-│   ├── models.py          # Database models, including User and RefreshToken
-│   ├── schemas.py         # Pydantic schemas for request and response models, including user and token schemas
-│   ├── routers.py         # API routers for handling authentication-related endpoints
-│   ├── utils.py           # Utility functions for auth like password hashing and token generation
-│   └── dependencies.py    # Dependency injection for routes, including current user retrieval
-├── db
-│   ├── __init__.py
-│   └── connection.py      # Database connection setup using SQLAlchemy
+│   ├── dependencies.py
+│   ├── models.py
+│   ├── router.py
+│   ├── schemas.py
+│   └── utils.py
 ├── config
 │   ├── __init__.py
-│   └── settings.py        # Configuration settings using pydantic-settings
-└── main.py                # Main application setup
-
+│   └── settings.py
+├── db
+│   ├── __init__.py
+│   └── connection.py
+├── docker-compose.yaml
+├── main.py
+├── requirements.txt
+├── tests
+│   ├── __init__.py
+│   ├── auth
+│   │   └── test_register.py
+│   └── confest.py
+└── utils
+    └── custom_logger.py
 ```
 
 # Features
