@@ -50,7 +50,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             full_name=user.full_name,
             email=user.email,
             hashed_password=hashed_password,
-            is_admin=user.is_admin if hasattr(user, 'is_admin') else True
+            is_admin=False
         )
 
         db.add(db_user)
