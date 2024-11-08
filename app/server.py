@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from auth.router import router as auth_router
+from RBAC.router import router as rbac_router
 from db.connection import init_db
 
 
@@ -20,6 +21,7 @@ def make_middleware() -> list[Middleware]:
 
 def init_routers(app_: FastAPI) -> None:
     app_.include_router(auth_router)
+    app_.include_router(rbac_router)  # New router added
 
 
 def create_app() -> FastAPI:

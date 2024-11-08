@@ -10,8 +10,12 @@ class User(Base):
     full_name = Column(String)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    is_admin = Column(Boolean, default=False)
 
+    # Relationships
     refresh_tokens = relationship("RefreshToken", back_populates="user", foreign_keys="[RefreshToken.user_email]")
+    organization_users = relationship("OrganizationUser", back_populates="user")  # Ensure this line is correct
+    team_members = relationship("TeamMember", back_populates="user")
 
 class RefreshToken(Base):
     __tablename__ = 'refresh_tokens'
@@ -23,4 +27,3 @@ class RefreshToken(Base):
     revoked = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="refresh_tokens", foreign_keys=[user_email])
-
