@@ -35,7 +35,6 @@ class Team(Base):
 
     id = Column(Integer, primary_key=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"))
-    product_id = Column(Integer)  # Assuming ProductID is not a foreign key in this context
     name = Column(String, nullable=False)
 
     organization = relationship("Organization", back_populates="teams")

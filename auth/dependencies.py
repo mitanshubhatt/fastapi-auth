@@ -19,8 +19,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception

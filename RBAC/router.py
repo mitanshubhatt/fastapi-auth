@@ -188,3 +188,61 @@ async def get_team_members(team_id: int, db: AsyncSession = Depends(get_db), cur
     except Exception as e:
         logger.error(f"Error retrieving team members: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+@router.get("/my-organizations", response_model=List[OrganizationRead])
+async def get_my_organizations(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retrieve the list of organizations assigned to the current user.
+
+    Parameters:
+    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
+    - current_user (User): The current authenticated user making the request. It is injected via dependency.
+
+    Returns:
+    - List[OrganizationRead]: A list of organizations assigned to the current user.
+
+    Raises:
+    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
+    """
+    try:
+        result = await db.execute(
+            select(Organization).join(OrganizationUser).where(OrganizationUser.user_id == current_user.id)
+        )
+        organizations = result.scalars().all()
+        return [OrganizationRead.from_orm(org) for org in organizations]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+
+
+@router.get("/my-role/{organization_id}")
+async def get_user_role(organization_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retrieve the role of the current user in a specified organization.
+
+    Parameters:
+    - organization_id (int): The ID of the organization for which the user's role is to be retrieved.
+    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
+    - current_user (User): The current authenticated user making the request. It is injected via dependency.
+
+    Returns:
+    - dict: A dictionary containing the user's role in the specified organization.
+
+    Raises:
+    - HTTPException: If the user is not found in the organization, a 404 Not Found error is raised.
+    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
+    """
+    try:
+        result = await db.execute(
+            select(OrganizationUser.role).where(
+                OrganizationUser.user_id == current_user.id,
+                OrganizationUser.organization_id == organization_id
+            )
+        )
+        role = result.scalar()
+        if role is None:
+            raise HTTPException(status_code=404, detail="User role not found in the organization")
+        return {"role": role}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
