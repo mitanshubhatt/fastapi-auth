@@ -27,7 +27,7 @@ def init_routers(app_: FastAPI) -> None:
 def create_app() -> FastAPI:
     app_ = FastAPI(
         title="Auth",
-        description="Authentication APIs",
+        description="Authentication & Authorization",
         version="1.0.0",
         middleware=make_middleware(),
     )

@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update
 
-
 from db.connection import get_db
 from auth.models import User
 from RBAC.models import Organization, OrganizationUser, Team, TeamMember, RoleType, TeamRoleType
@@ -14,7 +13,7 @@ from utils.custom_logger import logger
 
 router = APIRouter(prefix="/rbac")
 
-@router.post("/create-organization", response_model=OrganizationRead)
+@router.post("/create-organization", response_model=OrganizationRead, description="Create a new organization. Only admin users can perform this action.", tags=["Organizations"])
 async def create_organization(org: OrganizationCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user.is_admin:
         logger.error("Permission denied: User is not an admin.")
@@ -31,7 +30,7 @@ async def create_organization(org: OrganizationCreate, db: AsyncSession = Depend
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
-@router.post("/assign-user-to-organization")
+@router.post("/assign-user-to-organization", description="Assign a user to an organization with a specified role. Only admin users can perform this action.", tags=["Organizations"])
 async def assign_user_to_organization(user_email: str, organization_id: int, role: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Assigns a user to an organization with a specified role using the user's email.
@@ -74,7 +73,7 @@ async def assign_user_to_organization(user_email: str, organization_id: int, rol
 
 
 
-@router.post("/create-team", response_model=TeamRead)
+@router.post("/create-team", response_model=TeamRead, description="Create a new team within an organization. Only organization admins can perform this action.", tags=["Teams"])
 async def create_team(team: TeamCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     user_role = await db.execute(
         select(OrganizationUser.role).where(
@@ -100,7 +99,7 @@ async def create_team(team: TeamCreate, db: AsyncSession = Depends(get_db), curr
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
 
 
-@router.post("/assign-user-to-team")
+@router.post("/assign-user-to-team", description="Assign a user to a team. Only team admins can perform this action.", tags=["Teams"])
 async def assign_user_to_team(user_email: str, team_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Assigns a user to a specified team in the database.
@@ -144,7 +143,7 @@ async def assign_user_to_team(user_email: str, team_id: int, db: AsyncSession = 
 
 
 
-@router.get("/organization-users/{organization_id}", response_model=List[OrganizationUserRead])
+@router.get("/organization-users/{organization_id}", response_model=List[OrganizationUserRead], description="Retrieve a list of users associated with a specific organization. Only admins can access this information.", tags=["Organizations"])
 async def get_organization_users(organization_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Retrieve a list of users associated with a specific organization.
@@ -174,7 +173,7 @@ async def get_organization_users(organization_id: int, db: AsyncSession = Depend
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
-@router.get("/team-members/{team_id}", response_model=List[TeamMemberRead])
+@router.get("/team-members/{team_id}", response_model=List[TeamMemberRead], description="Retrieve the list of team members for a specified team. Only admins can access this information.", tags=["Teams"])
 async def get_team_members(team_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Retrieve the list of team members for a specified team.
@@ -205,65 +204,7 @@ async def get_team_members(team_id: int, db: AsyncSession = Depends(get_db), cur
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
-@router.get("/my-organizations", response_model=List[OrganizationRead])
-async def get_my_organizations(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Retrieve the list of organizations assigned to the current user.
-
-    Parameters:
-    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
-    - current_user (User): The current authenticated user making the request. It is injected via dependency.
-
-    Returns:
-    - List[OrganizationRead]: A list of organizations assigned to the current user.
-
-    Raises:
-    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
-    """
-    try:
-        result = await db.execute(
-            select(Organization).join(OrganizationUser).where(OrganizationUser.user_id == current_user.id)
-        )
-        organizations = result.scalars().all()
-        return [OrganizationRead.from_orm(org) for org in organizations]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
-    
-
-
-@router.get("/my-role/{organization_id}")
-async def get_user_role(organization_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Retrieve the role of the current user in a specified organization.
-
-    Parameters:
-    - organization_id (int): The ID of the organization for which the user's role is to be retrieved.
-    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
-    - current_user (User): The current authenticated user making the request. It is injected via dependency.
-
-    Returns:
-    - dict: A dictionary containing the user's role in the specified organization.
-
-    Raises:
-    - HTTPException: If the user is not found in the organization, a 404 Not Found error is raised.
-    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
-    """
-    try:
-        result = await db.execute(
-            select(OrganizationUser.role).where(
-                OrganizationUser.user_id == current_user.id,
-                OrganizationUser.organization_id == organization_id
-            )
-        )
-        role = result.scalar()
-        if role is None:
-            raise HTTPException(status_code=404, detail="User role not found in the organization")
-        return {"role": role}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.put("/change-user-role")
+@router.put("/change-user-role", description="Change the role of a user in an organization. Only organization admins can perform this action.", tags=["Organizations"])
 async def change_user_role(user_id: int, organization_id: int, new_role: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Change the role of a user in an organization.
@@ -304,7 +245,7 @@ async def change_user_role(user_id: int, organization_id: int, new_role: str, db
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
-@router.put("/change-team-role")
+@router.put("/change-team-role", description="Change the role of a user in a team. Only team admins can perform this action.", tags=["Teams"])
 async def change_team_role(user_id: int, team_id: int, new_role: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Change the role of a user in a team.
@@ -346,3 +287,67 @@ async def change_team_role(user_id: int, team_id: int, new_role: str, db: AsyncS
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 
+@router.get("/organizations", description="Retrieve a list of all organizations along with the roles of the current user.", tags=["Organizations"])
+async def list_organizations(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retrieve a list of all organizations along with the roles of the current user.
+
+    Parameters:
+    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
+    - current_user (User): The current authenticated user making the request. It is injected via dependency.
+
+    Returns:
+    - List[OrganizationRead]: A list of all organizations with the user's roles.
+
+    Raises:
+    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
+    """
+    try:
+        result = await db.execute(
+            select(Organization, OrganizationUser.role)
+            .join(OrganizationUser, Organization.id == OrganizationUser.organization_id)
+            .where(OrganizationUser.user_id == current_user.id)
+        )
+        organizations_with_roles = result.all()
+        return [
+            {
+                "organization": OrganizationRead.from_orm(org),
+                "role": role
+            }
+            for org, role in organizations_with_roles
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/teams", description="Retrieve a list of all teams along with the roles of the current user.", tags=["Teams"])
+async def list_teams(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retrieve a list of all teams along with the roles of the current user.
+
+    Parameters:
+    - db (AsyncSession): The database session used to execute the query. It is injected via dependency.
+    - current_user (User): The current authenticated user making the request. It is injected via dependency.
+
+    Returns:
+    - List[TeamRead]: A list of all teams with the user's roles.
+
+    Raises:
+    - HTTPException: If there is an error during the database query execution, a 500 Internal Server Error is raised.
+    """
+    try:
+        result = await db.execute(
+            select(Team, TeamMember.role)
+            .join(TeamMember, Team.id == TeamMember.team_id)
+            .where(TeamMember.user_id == current_user.id)
+        )
+        teams_with_roles = result.all()
+        return [
+            {
+                "team": TeamRead.from_orm(team),
+                "role": role
+            }
+            for team, role in teams_with_roles
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

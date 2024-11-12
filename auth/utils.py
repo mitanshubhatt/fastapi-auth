@@ -49,6 +49,6 @@ async def create_refresh_token(data: dict, expires_delta: timedelta, db: AsyncSe
 async def authenticate_user(db, email: str, password: str):
     user = await db.execute(select(User).where(User.email == email))
     user = user.scalars().first()
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not await verify_password(password, user.hashed_password):
         return False
     return user

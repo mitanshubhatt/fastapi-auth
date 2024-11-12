@@ -18,7 +18,6 @@ class OrganizationRead(BaseModel):
 
 class TeamCreate(BaseModel):
     organization_id: int
-    product_id: int
     name: str
 
     class Config:
@@ -27,7 +26,6 @@ class TeamCreate(BaseModel):
 class TeamRead(BaseModel):
     id: int
     organization_id: int
-    product_id: int
     name: str
 
     class Config:

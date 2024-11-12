@@ -19,7 +19,7 @@ from utils.custom_logger import logger
 router = APIRouter(prefix="/auth")
 
 
-@router.post("/register", response_model=UserRead)
+@router.post("/register", response_model=UserRead, tags=["Authentication"])
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     """Endpoint for registering new user
 
@@ -67,7 +67,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         )
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, tags=["Authentication"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """Endpoint for login
 
@@ -103,7 +103,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
-@router.post("/refresh-token", response_model=Token)
+@router.post("/refresh-token", response_model=Token, tags=["Authentication"])
 async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
     """Generate refresh token
 
@@ -146,12 +146,12 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
 
 
 
-@router.get("/users/me", response_model=UserRead)
+@router.get("/users/me", response_model=UserRead, tags=["Users"])
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/revoke-token")
+@router.post("/revoke-token", tags=["Authentication"])
 async def revoke_refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
     update_statement = (
         update(RefreshToken)
