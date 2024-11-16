@@ -15,15 +15,23 @@ router = APIRouter(prefix="/rbac")
 
 @router.post("/create-organization", response_model=OrganizationRead, description="Create a new organization. Only admin users can perform this action.", tags=["Organizations"])
 async def create_organization(org: OrganizationCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user.is_admin:
-        logger.error("Permission denied: User is not an admin.")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
     try:
         db_org = Organization(name=org.name)
         db.add(db_org)
         await db.commit()
         await db.refresh(db_org)
-        logger.info(f"Organization '{org.name}' created successfully.")
+
+        # Add the current user as the admin of the organization
+        org_user = OrganizationUser(
+            organization_id=db_org.id,
+            user_id=current_user.id,
+            role=RoleType.ADMIN
+        )
+        db.add(org_user)
+        await db.commit()
+        await db.refresh(org_user)
+
+        logger.info(f"Organization '{org.name}' created successfully with {current_user.email} as admin.")
         return OrganizationRead.from_orm(db_org)
     except Exception as e:
         logger.error(f"Error creating organization: {str(e)}")

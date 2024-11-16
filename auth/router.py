@@ -12,7 +12,8 @@ from db.connection import get_db
 from config.settings import settings
 from auth.models import User, RefreshToken
 from auth.schemas import UserCreate, UserRead, Token
-from auth.utils import get_password_hash, create_access_token, create_refresh_token, authenticate_user
+from auth.utils import get_password_hash, authenticate_user
+from utils.utilities import get_auth_instance
 from auth.dependencies import get_current_user
 from utils.custom_logger import logger
 
@@ -90,11 +91,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = await create_access_token(
+    
+    access_token = await settings.auth_instance.create_access_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires
     )
     refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
-    refresh_token = await create_refresh_token(
+    refresh_token = await settings.auth_instance.create_refresh_token(
         data={"sub": form_data.username}, expires_delta=refresh_token_expires, db=db
     )
     
@@ -138,7 +140,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
         
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = await create_access_token(
+    access_token = await settings.auth_instance.create_access_token(
         data={"sub": email}, expires_delta=access_token_expires
     )
     logger.info(f"Refreshed the token successfully for user {email}.")

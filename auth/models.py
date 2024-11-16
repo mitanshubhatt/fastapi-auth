@@ -1,7 +1,14 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.connection import Base
+from enum import Enum
+
+
+class TokenType(Enum):
+    JWT = "jwt"
+    PASETO = "paseto"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -25,5 +32,7 @@ class RefreshToken(Base):
     token = Column(String, unique=True, index=True)
     expires_at = Column(DateTime, default=lambda: datetime.utcnow())
     revoked = Column(Boolean, default=False)
+    token_type = Column(SQLAlchemyEnum(TokenType), default=TokenType.JWT)
+    nonce = Column(String, nullable=True)
 
     user = relationship("User", back_populates="refresh_tokens", foreign_keys=[user_email])

@@ -13,3 +13,4 @@ services:
       - SECRET_KEY=oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E
       - ALGORITHM=HS256
       - DATABASE_URL=your//:database.url
+      - AUTH_MODE=paseto
