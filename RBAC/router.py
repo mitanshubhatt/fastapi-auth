@@ -18,9 +18,7 @@ async def create_organization(org: OrganizationCreate, db: AsyncSession = Depend
     try:
         db_org = Organization(name=org.name)
         db.add(db_org)
-        await db.commit()
-        await db.refresh(db_org)
-
+        
         # Add the current user as the admin of the organization
         org_user = OrganizationUser(
             organization_id=db_org.id,
@@ -30,8 +28,9 @@ async def create_organization(org: OrganizationCreate, db: AsyncSession = Depend
         db.add(org_user)
         await db.commit()
         await db.refresh(org_user)
+        await db.refresh(db_org)
 
-        logger.info(f"Organization '{org.name}' created successfully with {current_user.email} as admin.")
+        # logger.info(f"Organization '{org.name}' created successfully with {current_user.email} as admin.")
         return OrganizationRead.from_orm(db_org)
     except Exception as e:
         logger.error(f"Error creating organization: {str(e)}")

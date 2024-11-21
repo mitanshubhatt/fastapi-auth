@@ -10,6 +10,12 @@ class TokenType(Enum):
     PASETO = "paseto"
 
 
+class AuthType(Enum):
+    LOCAL = "local"
+    GOOGLE = "google"
+    MICROSOFT = "microsoft"
+    GITHUB = "github"
+
 class User(Base):
     __tablename__ = "users"
 
@@ -18,10 +24,10 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
+    auth_type = Column(SQLAlchemyEnum(AuthType), default=AuthType.LOCAL)
 
-    # Relationships
     refresh_tokens = relationship("RefreshToken", back_populates="user", foreign_keys="[RefreshToken.user_email]")
-    organization_users = relationship("OrganizationUser", back_populates="user")  # Ensure this line is correct
+    organization_users = relationship("OrganizationUser", back_populates="user")
     team_members = relationship("TeamMember", back_populates="user")
 
 class RefreshToken(Base):

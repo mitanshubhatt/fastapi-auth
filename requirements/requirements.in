@@ -11,3 +11,5 @@ cryptography==43.0.3
 pyseto==0.7.1
 aiofiles==24.1.0
 pysodium==0.7.18
+authlib==1.3.2
+itsdangerous==2.2.0

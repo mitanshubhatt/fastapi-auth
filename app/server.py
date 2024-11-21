@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from auth.router import router as auth_router
 from RBAC.router import router as rbac_router
 from db.connection import init_db
@@ -18,6 +19,10 @@ def make_middleware() -> list[Middleware]:
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+        ),
+        Middleware(
+            SessionMiddleware,
+            secret_key="your-secret-key"  # Replace with a secure key
         )
     ]
     return middleware

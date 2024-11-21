@@ -14,3 +14,7 @@ services:
       - ALGORITHM=HS256
       - DATABASE_URL=your//:database.url
       - AUTH_MODE=paseto
+      - GOOGLE_CLIENT_ID=temp
+      - GOOGLE_CLIENT_SECRET=temp
+      - GITHUB_CLIENT_ID=temp
+      - GITHUB_CLIENT_SECRET=temp

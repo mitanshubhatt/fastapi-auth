@@ -27,6 +27,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
             logging.error("Token verification failed: Email is None")
             raise credentials_exception
 
+
         user_result = await db.execute(select(User).where(User.email == email))
         user = user_result.scalars().first()
         if user is None:
