@@ -58,7 +58,7 @@ This project, powered by **Fynix AI Code Assistant**, implements an advanced aut
   - PASETO Tokens with Private-Public Key Encryption
 - **RBAC (Role-Based Access Control)**:
   - Organization-level access
-  - Team-level granular permissions
+  - Team-level access
 - **User Management**:
   - User registration and login
   - Secure password hashing (using `passlib`)
@@ -98,9 +98,9 @@ Once up, the API documentation will be available at: [http://localhost:8000/docs
 |-----------------------------|----------------------------------|----------|
 | **User Registration**       | `/auth/register`                | `POST`   |
 | **User Login (JWT)**        | `/auth/login`                   | `POST`   |
-| **Login with Google**       | `/auth/google-login`            | `GET`    |
-| **Login with GitHub**       | `/auth/github-login`            | `GET`    |
-| **Login with Microsoft**    | `/auth/microsoft-login`         | `GET`    |
+| **Login with Google**       | `/auth/google`                  | `GET`    |
+| **Login with GitHub**       | `/auth/github/login`            | `GET`    |
+| **Login with Microsoft**    | `/auth/microsoft`               | `GET`    |
 | **Token Refresh**           | `/auth/refresh-token`           | `POST`   |
 | **Get Current User**        | `/auth/users/me`                | `GET`    |
 | **Revoke Token**            | `/auth/revoke-token`            | `POST`   |
@@ -166,7 +166,6 @@ curl --location 'localhost:8000/rbac/assign-role' \
 
 ### RBAC Support
 - Manage roles and permissions at **organization** and **team** levels.
-- Define custom roles with flexible permissions.
 
 ---
 
