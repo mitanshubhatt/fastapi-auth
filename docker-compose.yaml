@@ -7,3 +7,14 @@ services:
       - "8000:8000"
     volumes:
       - .:/usr/src/app
+    environment:
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - SECRET_KEY=oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E
+      - ALGORITHM=HS256
+      - DATABASE_URL=your//:database.url
+      - AUTH_MODE=paseto
+      - GOOGLE_CLIENT_ID=temp
+      - GOOGLE_CLIENT_SECRET=temp
+      - GITHUB_CLIENT_ID=temp
+      - GITHUB_CLIENT_SECRET=temp

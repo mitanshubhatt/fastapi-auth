@@ -1,13 +1,35 @@
 from pydantic_settings import BaseSettings
+from functools import lru_cache
+from typing import Optional
+from utils.base_auth import BaseAuth
+
+from authlib.integrations.starlette_client import OAuth
+
 
 class Settings(BaseSettings):
-    access_token_expire_minutes: int = 15
-    refresh_token_expire_days: int = 7
-    secret_key: str = "oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E"
-    algorithm: str = "HS256"
-    database_url: str = "postgresql+asyncpg://authdb_owner:0MFqZ9rjyEUX@ep-falling-dust-a1nu2soz.ap-southeast-1.aws.neon.tech/authdb"
+    access_token_expire_minutes: int
+    refresh_token_expire_days: int
+    secret_key: str
+    algorithm: str
+    database_url: str
+    auth_mode: str
+    paseto_private_key: Optional[str] = None
+    paseto_public_key: Optional[str] = None
+    auth_instance: Optional[BaseAuth] = None
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    
+    oauth_google: Optional[OAuth] = None
+    oauth_microsoft: Optional[OAuth] = None
+    oauth_github: Optional[OAuth] = None
 
     class Config:
         env_file = ".env"
 
-settings = Settings()
+@lru_cache()
+def get_settings():
+    return Settings()
+
+settings = get_settings()

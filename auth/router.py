@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -7,18 +7,70 @@ from jose import jwt, JWTError
 from datetime import datetime
 from sqlalchemy import update
 from pydantic import ValidationError
+from authlib.integrations.starlette_client import OAuth
 
 from db.connection import get_db
 from config.settings import settings
-from auth.models import User, RefreshToken
+from auth.models import User, RefreshToken, AuthType
 from auth.schemas import UserCreate, UserRead, Token
-from auth.utils import get_password_hash, create_access_token, create_refresh_token, authenticate_user
+from auth.utils import get_password_hash, authenticate_user
 from auth.dependencies import get_current_user
+from utils.custom_logger import logger
 
 router = APIRouter(prefix="/auth")
 
+@router.get('/microsoft')
+async def microsoft_login(request: Request):
+    settings.oauth_microsoft = OAuth()
+    
+    settings.oauth_microsoft.register(
+        name='microsoft',
+        client_id=settings.microsoft_client_id,
+        client_secret=settings.microsoft_client_secret,
+        server_metadata_url='https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
+        client_kwargs={
+            'scope': 'openid email profile',
+        }
+    )
+    
+    redirect_uri = request.url_for('microsoft_auth_callback')
+    return await settings.oauth_microsoft.microsoft.authorize_redirect(request, redirect_uri)
 
-@router.post("/register", response_model=UserRead)
+@router.get('/google')
+async def google_login(request: Request):
+    settings.oauth_google = OAuth()
+    
+    settings.oauth_google.register(
+        name='google',
+        client_id=settings.google_client_id,
+        client_secret=settings.google_client_secret,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={
+            'scope': 'email openid profile',
+        }
+    )
+    
+    redirect_uri = request.url_for('google_auth_callback')
+    return await settings.oauth_google.google.authorize_redirect(request, redirect_uri)
+
+
+@router.get('/github/login')
+async def github_login(request: Request):
+    """Redirects user to GitHub for authentication."""
+    settings.oauth_github = OAuth()
+    settings.oauth_github.register(
+        name='github',
+        client_id=settings.github_client_id,
+        client_secret=settings.github_client_secret,
+        access_token_url='https://github.com/login/oauth/access_token',
+        authorize_url='https://github.com/login/oauth/authorize',
+        api_base_url='https://api.github.com/',
+        client_kwargs={'scope': 'user:email'},
+    )
+    redirect_uri = request.url_for('github_callback')
+    return await settings.oauth_github.github.authorize_redirect(request, redirect_uri)
+
+@router.post("/register", response_model=UserRead, tags=["Authentication"])
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     """Endpoint for registering new user
 
@@ -38,6 +90,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         user_in_db = user_in_db.scalars().first()
 
         if user_in_db:
+            logger.error("User already registered.")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User already registered."
@@ -48,21 +101,24 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             full_name=user.full_name,
             email=user.email,
             hashed_password=hashed_password,
+            is_admin=False
         )
 
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
+        logger.info("User registered successfully.")
         return db_user
     except ValidationError as e:
         # Handle validation errors from Pydantic
+        logger.error(f"Validation error: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=e.errors()
         )
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, tags=["Authentication"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """Endpoint for login
 
@@ -76,26 +132,31 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     Returns:
         Token: Token details
     """
+
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        logger.error("Incorrect email or password.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = await create_access_token(
+    
+    access_token = await settings.auth_instance.create_access_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires
     )
     refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
-    refresh_token = await create_refresh_token(
+    refresh_token = await settings.auth_instance.create_refresh_token(
         data={"sub": form_data.username}, expires_delta=refresh_token_expires, db=db
     )
+    
+    logger.info(f"User {form_data.username} logged in successfully.")
     
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
-@router.post("/refresh-token", response_model=Token)
+@router.post("/refresh-token", response_model=Token, tags=["Authentication"])
 async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
     """Generate refresh token
 
@@ -117,8 +178,6 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
     try:
         payload = jwt.decode(refresh_token, settings.secret_key, algorithms=[settings.algorithm])
         email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
 
         # Check token in database
         token_result = await db.execute(
@@ -132,19 +191,20 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
         
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = await create_access_token(
+    access_token = await settings.auth_instance.create_access_token(
         data={"sub": email}, expires_delta=access_token_expires
     )
+    logger.info(f"Refreshed the token successfully for user {email}.")
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
 
-@router.get("/users/me", response_model=UserRead)
+@router.get("/users/me", response_model=UserRead, tags=["Users"])
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/revoke-token")
+@router.post("/revoke-token", tags=["Authentication"])
 async def revoke_refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
     update_statement = (
         update(RefreshToken)
@@ -153,4 +213,120 @@ async def revoke_refresh_token(refresh_token: str, db: AsyncSession = Depends(ge
     )
     await db.execute(update_statement)
     await db.commit()
+    logger.info(f"Token revoked successfully.")
     return {"message": "Token revoked successfully"}
+
+
+@router.get('/google/callback')
+async def google_auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    token = await settings.oauth_google.google.authorize_access_token(request)
+    user_info = token.get('userinfo')
+    if not user_info:
+        raise HTTPException(status_code=400, detail="Failed to fetch user info")
+    
+    # Check if user exists, if not, create a new user
+    user = await db.execute(select(User).where(User.email == user_info['email']))
+    user = user.scalars().first()
+    
+    if not user:
+        # Create a new user if not exists
+        user = User(
+            full_name=user_info['name'],
+            email=user_info['email'],
+            auth_type=AuthType.GOOGLE
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # Generate tokens
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = await settings.auth_instance.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
+    refresh_token = await settings.auth_instance.create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires, db=db
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.get('/microsoft/callback')
+async def microsoft_auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    token = await settings.oauth.microsoft.authorize_access_token(request)
+    user_info = token.get('userinfo')
+    if not user_info:
+        raise HTTPException(status_code=400, detail="Failed to fetch user info")
+    
+    user = await db.execute(select(User).where(User.email == user_info['email']))
+    user = user.scalars().first()
+    
+    if not user:
+        # Create a new user if not exists
+        user = User(
+            full_name=user_info['name'],
+            email=user_info['email'],
+            auth_type=AuthType.GOOGLE
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # Generate tokens
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = await settings.auth_instance.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
+    refresh_token = await settings.auth_instance.create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires, db=db
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.get('/github/callback')
+async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    """Handles the callback from GitHub after user authorization."""
+    # Get access token from GitHub
+    token = await settings.oauth_github.github.authorize_access_token(request)
+    user_data = await settings.oauth_github.github.get('user', token=token)
+    user_email = await settings.oauth_github.github.get('user/emails', token=token)
+    user_info = user_data.json()
+    user_email_info = user_email.json()
+
+    email = None
+    for email_info in user_email_info:
+        if email_info.get('primary') and email_info.get('verified'):
+            email = email_info.get('email')
+            break
+
+    if not email:
+        raise HTTPException(status_code=400, detail="No verified email found.")
+
+    user = await db.execute(select(User).where(User.email == email))
+    user = user.scalars().first()
+
+    if not user:
+    # Create a new user if not exists
+        user = User(
+            full_name=user_info['name'],
+            email=user_info['email'],
+            auth_type=AuthType.GOOGLE
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # Generate tokens
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = await settings.auth_instance.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
+    refresh_token = await settings.auth_instance.create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires, db=db
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
