@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     auth_instance: Optional[BaseAuth] = None
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None
+    microsoft_client_id: Optional[str] = None
+    microsoft_client_secret: Optional[str] = None
     github_client_id: Optional[str] = None
     github_client_secret: Optional[str] = None
     
