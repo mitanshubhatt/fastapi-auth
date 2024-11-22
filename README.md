@@ -52,7 +52,7 @@ This project, powered by **Fynix AI Code Assistant**, implements an advanced aut
 - **Multi-provider Authentication**:
   - Google OAuth
   - GitHub OAuth
-  - Microsoft Azure AD
+  - Microsoft Azure Auth
 - **Token Management**:
   - JWT Access and Refresh Tokens
   - PASETO Tokens with Private-Public Key Encryption
@@ -74,9 +74,9 @@ This project, powered by **Fynix AI Code Assistant**, implements an advanced aut
 - FastAPI
 - SQLAlchemy
 - Uvicorn (ASGI server)
-- OAuth libraries (`google-auth`, `authlib`, `requests-oauthlib`)
+- OAuth libraries (`authlib`)
 - JWT token handling (`python-jose`)
-- PASETO token handling (`paseto-python`)
+- PASETO token handling (`pyseto`)
 
 ---
 
@@ -104,8 +104,6 @@ Once up, the API documentation will be available at: [http://localhost:8000/docs
 | **Token Refresh**           | `/auth/refresh-token`           | `POST`   |
 | **Get Current User**        | `/auth/users/me`                | `GET`    |
 | **Revoke Token**            | `/auth/revoke-token`            | `POST`   |
-| **RBAC Role Assignment**    | `/rbac/assign-role`             | `POST`   |
-| **RBAC Role Revocation**    | `/rbac/revoke-role`             | `POST`   |
 
 ---
 
@@ -140,17 +138,6 @@ curl --location 'localhost:8000/auth/google-login' \
 ```plaintext
 curl --location 'localhost:8000/auth/users/me' \
 --header 'Authorization: Bearer <ACCESS_TOKEN>'
-```
-
-### Assign RBAC Role
-```plaintext
-curl --location 'localhost:8000/rbac/assign-role' \
---header 'Content-Type: application/json' \
---data-raw '{
-  "user_id": "user123",
-  "role": "admin",
-  "scope": "organization"
-}'
 ```
 
 ---
