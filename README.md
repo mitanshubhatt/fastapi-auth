@@ -1,5 +1,5 @@
 
-# - [Fynix AI Code Assistant](https://marketplace.visualstudio.com/items?itemName=Fynix.fynix) - FastAPI Authentication and Authorization System
+# [Fynix AI Code Assistant](https://marketplace.visualstudio.com/items?itemName=Fynix.fynix) - FastAPI Authentication and Authorization System
 
 This project, powered by **Fynix AI Code Assistant**, implements an advanced authentication and authorization system using **FastAPI**, **SQLAlchemy**, and modern tokenization techniques such as **JWT** and **PASETO**. It supports multiple authentication providers (Google, GitHub, and Microsoft), token management, and a robust RBAC system for organization and team-level access.
 
