@@ -4,3 +4,4 @@ __pycache__
 .scannerwork
 .secure
 launch.json
+.vscode
