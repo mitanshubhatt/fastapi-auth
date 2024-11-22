@@ -57,6 +57,7 @@ async def google_login(request: Request):
 @router.get('/github/login')
 async def github_login(request: Request):
     """Redirects user to GitHub for authentication."""
+    settings.oauth_github = OAuth()
     settings.oauth_github.register(
         name='github',
         client_id=settings.github_client_id,
