@@ -1,6 +1,9 @@
-# FastAPI Authentication and Authorization
 
-This project implements a basic authentication and authorization system using FastAPI, SQLAlchemy, and JWT. It supports user registration, login, and token management (access and refresh tokens).
+# Fynix AI Code Assistant - FastAPI Authentication and Authorization System
+
+This project, powered by **Fynix AI Code Assistant**, implements an advanced authentication and authorization system using **FastAPI**, **SQLAlchemy**, and modern tokenization techniques such as **JWT** and **PASETO**. It supports multiple authentication providers (Google, GitHub, and Microsoft), token management, and a robust RBAC system for organization and team-level access.
+
+---
 
 ## Project Structure
 
@@ -22,6 +25,7 @@ This project implements a basic authentication and authorization system using Fa
 │   ├── models.py
 │   ├── router.py
 │   ├── schemas.py
+│   ├── providers.py
 │   └── utils.py
 ├── config
 │   ├── __init__.py
@@ -41,70 +45,136 @@ This project implements a basic authentication and authorization system using Fa
     └── custom_logger.py
 ```
 
-# Features
-```plaintext
-User registration
-User login
-JWT access and refresh token generation
-Endpoint security with token verification
-Access and Refresh token generation
-Revoke the refresh token
-Swagger documentation
-```
+---
 
-# Prerequisites
-```plaintext
-Python 3.7+
-Docker & Docker compose
-FastAPI
-SQLAlchemy
-Uvicorn (ASGI server)
-JWT token handling (python-jose)
-Password hashing (passlib)
-```
+## Features
 
-# No need to use cURL commands for all API Endpoints
-## Just enter the below command in your system and the APIs should be available on swagger endpoint : ```localhost:8000/docs```
+- **Multi-provider Authentication**:
+  - Google OAuth
+  - GitHub OAuth
+  - Microsoft Azure AD
+- **Token Management**:
+  - JWT Access and Refresh Tokens
+  - PASETO Tokens with Private-Public Key Encryption
+- **RBAC (Role-Based Access Control)**:
+  - Organization-level access
+  - Team-level granular permissions
+- **User Management**:
+  - User registration and login
+  - Secure password hashing (using `passlib`)
+  - Token revocation for enhanced security
+- **Swagger Documentation**: Easily test APIs via an interactive UI at `localhost:8000/docs`
+
+---
+
+## Prerequisites
+
+- Python 3.7+
+- Docker & Docker Compose
+- FastAPI
+- SQLAlchemy
+- Uvicorn (ASGI server)
+- OAuth libraries (`google-auth`, `authlib`, `requests-oauthlib`)
+- JWT token handling (`python-jose`)
+- PASETO token handling (`paseto-python`)
+
+---
+
+## Quick Start
+
+### Run the Application
+
+To launch the application with all dependencies, run:
 
 ```plaintext
 docker-compose up -d
 ```
 
-## If cURL is required below are the commands for different functionalities
+Once up, the API documentation will be available at: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Register User
+### Key Endpoints
+
+| Functionality               | Endpoint                         | Method   |
+|-----------------------------|----------------------------------|----------|
+| **User Registration**       | `/auth/register`                | `POST`   |
+| **User Login (JWT)**        | `/auth/login`                   | `POST`   |
+| **Login with Google**       | `/auth/google-login`            | `GET`    |
+| **Login with GitHub**       | `/auth/github-login`            | `GET`    |
+| **Login with Microsoft**    | `/auth/microsoft-login`         | `GET`    |
+| **Token Refresh**           | `/auth/refresh-token`           | `POST`   |
+| **Get Current User**        | `/auth/users/me`                | `GET`    |
+| **Revoke Token**            | `/auth/revoke-token`            | `POST`   |
+| **RBAC Role Assignment**    | `/rbac/assign-role`             | `POST`   |
+| **RBAC Role Revocation**    | `/rbac/revoke-role`             | `POST`   |
+
+---
+
+## Example cURL Commands
+
+### Register a New User
 ```plaintext
 curl --location 'localhost:8000/auth/register' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-  "email": "mitanshu@example.com",
-  "full_name": "mitanshu",
-  "password": "Mitanshu@123"
+  "email": "user@example.com",
+  "full_name": "User Name",
+  "password": "SecurePass123"
 }'
 ```
-### Login User
+
+### Login User with JWT
 ```plaintext
 curl --location 'localhost:8000/auth/login' \
 --header 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'username=mitanshu@example.com' \
---data-urlencode 'password=Mitanshu@123'
+--data-urlencode 'username=user@example.com' \
+--data-urlencode 'password=SecurePass123'
 ```
-### Refresh Access Token
+
+### Login with Google
 ```plaintext
-curl --location 'localhost:8000/auth/register' \
---header 'Content-Type: application/json' \
---data-raw '{
-  "email": "mitanshu@example.com",
-  "full_name": "mitanshu",
-  "password": "Mitanshu@123"
-}'
+curl --location 'localhost:8000/auth/google-login' \
+--header 'Content-Type: application/json'
 ```
+
 ### Get Current User Details
 ```plaintext
 curl --location 'localhost:8000/auth/users/me' \
---header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtaXRhbnNodUBleGFtcGxlLmNvbSIsImV4cCI6MTcxOTE0MDQwMH0.3cI3GwZNTpTLDXByj8OgPjvmSf5gIIJk45Aakpli8nA'
+--header 'Authorization: Bearer <ACCESS_TOKEN>'
 ```
-### Revoke Token
+
+### Assign RBAC Role
 ```plaintext
-curl --location --request POST 'localhost:8000/auth/revoke-token?refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtaXRhbnNodUBleGFtcGxlLmNvbSIsImlhdCI6MTcxOTEzOTUwMCwibm9uY2UiOiI0NDg0MGEwNTg3OTI5N2U0NmUzODM4MzhkMzlmNGVmYiJ9.PsXrv8t_sYFUbQKFN3xcE02LnmTACggbXFiX0GJG79o'
+curl --location 'localhost:8000/rbac/assign-role' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "user_id": "user123",
+  "role": "admin",
+  "scope": "organization"
+}'
 ```
+
+---
+
+## Highlights
+
+### Enhanced Authentication Mechanisms
+- **JWT**: Lightweight and stateless access tokens.
+- **PASETO**: More secure alternative to JWT with public-private key encryption.
+
+### OAuth Integration
+- Seamless login via **Google**, **GitHub**, and **Microsoft** for faster and secure authentication.
+
+### RBAC Support
+- Manage roles and permissions at **organization** and **team** levels.
+- Define custom roles with flexible permissions.
+
+---
+
+## Made with Fynix AI Code Assistant
+
+This project is built using **Fynix AI Code Assistant**, which simplifies and accelerates development with:
+- AI-powered code suggestions.
+- Automated code reviews and improvements.
+- Intelligent debugging and testing.
+
+Experience the power of **Fynix AI** to build smarter, more secure, and scalable applications. 🚀
