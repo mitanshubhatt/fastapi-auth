@@ -128,12 +128,6 @@ curl --location 'localhost:8000/auth/login' \
 --data-urlencode 'password=SecurePass123'
 ```
 
-### Login with Google
-```plaintext
-curl --location 'localhost:8000/auth/google-login' \
---header 'Content-Type: application/json'
-```
-
 ### Get Current User Details
 ```plaintext
 curl --location 'localhost:8000/auth/users/me' \
