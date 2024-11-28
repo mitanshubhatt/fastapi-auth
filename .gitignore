@@ -5,3 +5,4 @@ __pycache__
 .secure
 launch.json
 .vscode
+.pytest_cache/
