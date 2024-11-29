@@ -64,17 +64,23 @@ class Role(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     description = Column(String)
+    scope = Column(Enum("organization", "team", name="role_scope"), nullable=False)
 
     role_permissions = relationship("RolePermission", back_populates="role")
+    organization_users = relationship("OrganizationUser", back_populates="role")
+    team_members = relationship("TeamMember", back_populates="role")
+
 
 class Permission(Base):
     __tablename__ = 'permissions'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, unique=True, index=True)  # Permission name (e.g., create_team, assign_task)
     description = Column(String)
+    scope = Column(Enum("organization", "team", name="permission_scope"), nullable=False)  # Permission scope
 
     role_permissions = relationship("RolePermission", back_populates="permission")
+
 
 class UserRole(Base):
     __tablename__ = 'user_roles'
