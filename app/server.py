@@ -5,10 +5,14 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from auth.router import router as auth_router
-from RBAC.router import router as rbac_router
 from db.connection import init_db
 from config.settings import settings
 from utils.utilities import get_auth_instance
+
+from RBAC.routes.organization import router as org_router
+from RBAC.routes.teams import router as teams_router
+from RBAC.routes.roles import router as roles_router
+from RBAC.routes.permissions import router as perm_router
 
 
 def make_middleware() -> list[Middleware]:
@@ -30,7 +34,10 @@ def make_middleware() -> list[Middleware]:
 
 def init_routers(app_: FastAPI) -> None:
     app_.include_router(auth_router)
-    app_.include_router(rbac_router)  # New router added
+    app_.include_router(org_router)
+    app_.include_router(teams_router)
+    app_.include_router(perm_router)
+    app_.include_router(roles_router)
 
 
 @asynccontextmanager
