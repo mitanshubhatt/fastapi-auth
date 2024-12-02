@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Table, event
+from sqlalchemy.orm import relationship, sessionmaker, Session
 from db.connection import Base
 from datetime import datetime
+
+# from utils.permission_middleware import build_permissions
+from config.settings import settings
 
 
 class RolePermission(Base):
@@ -69,6 +72,7 @@ class Role(Base):
     role_permissions = relationship("RolePermission", back_populates="role")
     organization_users = relationship("OrganizationUser", back_populates="role")
     team_members = relationship("TeamMember", back_populates="role")
+    user_roles = relationship("UserRole", back_populates="role")
 
 
 class Permission(Base):
@@ -91,3 +95,13 @@ class UserRole(Base):
 
     user = relationship("User", back_populates="user_roles")
     role = relationship("Role", back_populates="user_roles")
+
+
+# @event.listens_for(RolePermission, "after_delete")
+# @event.listens_for(RolePermission, "after_update")
+# def update_permissions(mapper, connection, target):
+#     """Update permissions whenever RolePermission table is modified."""
+#     SessionLocal = sessionmaker(bind=connection.engine, class_=Session)
+#     with SessionLocal() as db:
+#         # Rebuild the permissions dictionary
+#         settings.permissions = build_permissions(db)

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/rbac/organizations", tags=["Organizations"])
 async def create_organization(
     org: OrganizationCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
     return await create_organization_view(org, db, current_user)
 
@@ -22,6 +22,6 @@ async def assign_user_to_organization(
     organization_id: int,
     role_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
     return await assign_user_to_organization_view(user_email, organization_id, role_id, db, current_user)

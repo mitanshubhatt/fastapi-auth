@@ -34,3 +34,4 @@ async def get_auth_instance():
                 )
 
         return PasetoAuth()
+

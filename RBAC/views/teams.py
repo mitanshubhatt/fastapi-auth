@@ -58,3 +58,30 @@ async def assign_user_to_team_view(user_email: str, team_id: int, role_id: int, 
     except Exception as e:
         logger.error(f"Error assigning user to team: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+async def remove_user_from_team_view(
+    user_email: str, team_id: int, db: AsyncSession, current_user: User
+):
+    try:
+        user = await db.execute(select(User).where(User.email == user_email))
+        user = user.scalars().first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        team_member = await db.execute(
+            select(TeamMember)
+            .where(TeamMember.user_id == user.id, TeamMember.team_id == team_id)
+        )
+        team_member = team_member.scalars().first()
+        if not team_member:
+            raise HTTPException(status_code=404, detail="User is not part of the team")
+
+        # Remove the user from the team
+        await db.delete(team_member)
+        await db.commit()
+
+        return {"message": f"User {user_email} successfully removed from team {team_id}"}
+
+    except Exception as e:
+        logger.error(f"Error removing user from team: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

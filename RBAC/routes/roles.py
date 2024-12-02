@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.models import User
 from db.connection import get_db
 from auth.dependencies import get_current_user
-from views.roles import get_roles_view, get_user_role_in_organization_view, get_user_role_in_team_view
+from RBAC.views.roles import get_roles_view, get_user_role_in_organization_view, get_user_role_in_team_view
 
 router = APIRouter(prefix="/rbac/roles", tags=["Roles"])
 
@@ -15,7 +15,7 @@ async def get_roles(db: AsyncSession = Depends(get_db)):
 async def get_current_user_role_organization(
     organization_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
     return await get_user_role_in_organization_view(organization_id, db, current_user)
 
