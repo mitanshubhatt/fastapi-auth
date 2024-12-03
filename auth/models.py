@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from db.connection import Base
+from db.pg_connection import Base
 from enum import Enum
 
 
@@ -25,7 +25,6 @@ class User(Base):
     phone_number = Column(String, nullable=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    is_admin = Column(Boolean, default=False)
     auth_type = Column(SQLAlchemyEnum(AuthType), default=AuthType.LOCAL)
     verified = Column(Boolean, default=False)
 

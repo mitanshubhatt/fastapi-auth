@@ -2,8 +2,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from db.connection import get_db
+from db.pg_connection import get_db
 from config.settings import settings
+from db.redis_connection import RedisClient
 from auth.models import User
 import logging
 
@@ -39,3 +40,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     except Exception as e:
         logging.error(f"Exception during token verification: {e}")
         raise credentials_exception from e
+
+
+async def get_redis_client() -> RedisClient:
+    redis_client = RedisClient()
+    await redis_client.connect()
+    return redis_client

@@ -128,6 +128,8 @@ python-multipart==0.0.17
     # via fastapi
 pyyaml==6.0.2
     # via uvicorn
+redis==5.2.0
+    # via -r requirements/requirements.in
 rich==13.9.4
     # via typer
 rsa==4.9

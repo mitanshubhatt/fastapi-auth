@@ -17,3 +17,4 @@ itsdangerous==2.2.0
 aiosqlite==0.20.0
 pytest-asyncio==0.24.0
 greenlet==3.1.1
+redis==5.2.0

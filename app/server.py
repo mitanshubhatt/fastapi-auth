@@ -5,10 +5,11 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from auth.router import router as auth_router
-from db.connection import get_db
+from db.pg_connection import get_db
 from config.settings import settings
 from utils.utilities import get_auth_instance
 from utils.permission_middleware import PermissionMiddleware, build_permissions
+from db.redis_connection import RedisClient
 
 from RBAC.routes.organization import router as org_router
 from RBAC.routes.teams import router as teams_router
@@ -56,6 +57,7 @@ def init_routers(app_: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     build_permissions()
     settings.auth_instance = await get_auth_instance()
+    await RedisClient().connect()
     yield
 
 
