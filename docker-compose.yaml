@@ -18,3 +18,12 @@ services:
       - GOOGLE_CLIENT_SECRET=temp
       - GITHUB_CLIENT_ID=temp
       - GITHUB_CLIENT_SECRET=temp
+      - HINATA_HOST=temp
+      - SMTP_NETCORE=temp
+    depends_on:
+      - redis
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -9,13 +10,16 @@ from sqlalchemy import update
 from pydantic import ValidationError
 from authlib.integrations.starlette_client import OAuth
 
-from db.connection import get_db
+from db.pg_connection import get_db
 from config.settings import settings
 from auth.models import User, RefreshToken, AuthType
 from auth.schemas import UserCreate, UserRead, Token
-from auth.utils import get_password_hash, authenticate_user
-from auth.dependencies import get_current_user
+from auth.utils import get_password_hash, authenticate_user, send_email_verification
+from auth.dependencies import get_current_user, get_redis_client
 from utils.custom_logger import logger
+from db.redis_connection import RedisClient
+from utils.serializers import ResponseData
+
 
 router = APIRouter(prefix="/auth")
 
@@ -74,7 +78,7 @@ async def github_login(request: Request):
     return await settings.oauth_github.github.authorize_redirect(request, redirect_uri)
 
 @router.post("/register", response_model=UserRead, tags=["Authentication"])
-async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), redis_client: RedisClient = Depends(get_redis_client)):
     """Endpoint for registering new user
 
     Args:
@@ -101,16 +105,25 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
         hashed_password = await get_password_hash(user.password)
         db_user = User(
-            full_name=user.full_name,
+            first_name=user.first_name,
+            last_name=user.last_name,
             email=user.email,
             hashed_password=hashed_password,
-            is_admin=False
+            verified=False,
+            phone_number=user.phone_number
         )
 
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
-        logger.info("User registered successfully.")
+        background_tasks.add_task(
+            send_email_verification,
+            redis_client=redis_client,
+            email=db_user.email,
+            first_name=db_user.first_name,
+        )
+        
+        logger.info("User registered successfully. Verification email sent.")
         return db_user
     except ValidationError as e:
         # Handle validation errors from Pydantic
@@ -333,3 +346,28 @@ async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.get("/verify-email", tags=["Authentication"])
+async def verify_email(code: str, redis_client: RedisClient = Depends(get_redis_client), db: AsyncSession = Depends(get_db)):
+    """
+    Endpoint to verify email using the provided verification code.
+    """
+    response_data = ResponseData.model_construct(success=False, message="Email verification failed!")
+    key = f"email_verification_code:{code}"
+    value = await redis_client.get(key)
+
+    if not value:
+        logger.error(f"Verification code '{code}' not found or expired.")
+        response_data.message = "Invalid or expired verification code."
+        return response_data.dict()
+
+    logger.info(f"Email successfully verified for code: {code}")
+    stmt = update(User).where(User.email == value).values(verified=True)
+    await db.execute(stmt)
+    await db.commit()
+    await redis_client.delete(key)
+    response_data.success = True
+    response_data.message = "Email verified successfully!"
+
+    return response_data.dict()

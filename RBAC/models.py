@@ -1,10 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Table, event
-from sqlalchemy.orm import relationship, sessionmaker, Session
-from db.connection import Base
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from db.pg_connection import Base
 from datetime import datetime
 
-# from utils.permission_middleware import build_permissions
-from config.settings import settings
 
 
 class RolePermission(Base):

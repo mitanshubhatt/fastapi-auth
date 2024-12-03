@@ -4,6 +4,7 @@ from typing import Optional, Dict
 from utils.base_auth import BaseAuth
 
 from authlib.integrations.starlette_client import OAuth
+from db.redis_connection import RedisClient
 
 
 class Settings(BaseSettings):
@@ -26,11 +27,21 @@ class Settings(BaseSettings):
     oauth_google: Optional[OAuth] = None
     oauth_microsoft: Optional[OAuth] = None
     oauth_github: Optional[OAuth] = None
+    redis_database_url: Optional[str] = None
+    hinata_host: str = None
+    email_provider: str = "netcore"
+    smtp_from_email: str = "no-reply@gofynd.com"
+    smtp_netcore: Optional[str] = None
+    
+    
+    
+    redis_client: Optional[RedisClient] = None
     
     permissions: Optional[Dict] = None
 
     class Config:
         env_file = ".env"
+
 
 @lru_cache()
 def get_settings():

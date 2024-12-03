@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.dependencies import get_current_user
-from db.connection import get_db
+from db.pg_connection import get_db
 from RBAC.views.permissions import (
     create_permission_view,
     get_all_permissions_view,

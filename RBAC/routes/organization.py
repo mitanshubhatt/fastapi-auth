@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.models import User
-from db.connection import get_db
+from db.pg_connection import get_db
 from auth.dependencies import get_current_user
 from RBAC.views.organization import create_organization_view, assign_user_to_organization_view
-from RBAC.schemas import OrganizationCreate, OrganizationRead
+from RBAC.schemas import OrganizationCreate
 
 router = APIRouter(prefix="/rbac/organizations", tags=["Organizations"])
 
