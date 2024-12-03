@@ -5,7 +5,7 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from auth.router import router as auth_router
-from db.connection import init_db, get_db
+from db.connection import get_db
 from config.settings import settings
 from utils.utilities import get_auth_instance
 from utils.permission_middleware import PermissionMiddleware, build_permissions
@@ -54,8 +54,6 @@ def init_routers(app_: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup event
-    await init_db()
     build_permissions()
     settings.auth_instance = await get_auth_instance()
     yield
