@@ -8,7 +8,7 @@ from RBAC.schemas import OrganizationCreate, OrganizationRead
 
 router = APIRouter(prefix="/rbac/organizations", tags=["Organizations"])
 
-@router.post("/create", response_model=OrganizationRead)
+@router.post("/create")
 async def create_organization(
     org: OrganizationCreate,
     db: AsyncSession = Depends(get_db),

@@ -20,11 +20,14 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    phone_number = Column(String, nullable=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
     auth_type = Column(SQLAlchemyEnum(AuthType), default=AuthType.LOCAL)
+    verified = Column(Boolean, default=False)
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", foreign_keys="[RefreshToken.user_email]")
     organization_users = relationship("OrganizationUser", back_populates="user")

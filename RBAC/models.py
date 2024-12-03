@@ -95,13 +95,3 @@ class UserRole(Base):
 
     user = relationship("User", back_populates="user_roles")
     role = relationship("Role", back_populates="user_roles")
-
-
-# @event.listens_for(RolePermission, "after_delete")
-# @event.listens_for(RolePermission, "after_update")
-# def update_permissions(mapper, connection, target):
-#     """Update permissions whenever RolePermission table is modified."""
-#     SessionLocal = sessionmaker(bind=connection.engine, class_=Session)
-#     with SessionLocal() as db:
-#         # Rebuild the permissions dictionary
-#         settings.permissions = build_permissions(db)

@@ -13,7 +13,6 @@ async def create_team(
     team: TeamCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    
 ):
     return await create_team_view(team, db, current_user)
 

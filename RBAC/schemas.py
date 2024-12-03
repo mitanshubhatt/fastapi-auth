@@ -7,7 +7,6 @@ class OrganizationCreate(BaseModel):
     name: str
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -16,7 +15,6 @@ class TeamCreate(BaseModel):
     organization_id: int
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -26,7 +24,6 @@ class RoleRead(BaseModel):
     description: Optional[str]
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -36,7 +33,6 @@ class OrganizationRead(BaseModel):
     creation_date: datetime
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -46,7 +42,6 @@ class UserRead(BaseModel):
     full_name: Optional[str]
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -57,7 +52,6 @@ class OrganizationUserRead(BaseModel):
     role: RoleRead
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -67,7 +61,6 @@ class TeamRead(BaseModel):
     organization: OrganizationRead
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -78,7 +71,6 @@ class TeamMemberRead(BaseModel):
     role: RoleRead
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 class PermissionBase(BaseModel):
@@ -95,4 +87,4 @@ class PermissionRead(PermissionBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
