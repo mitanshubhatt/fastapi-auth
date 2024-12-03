@@ -18,6 +18,7 @@ from auth.utils import get_password_hash, authenticate_user, send_email_verifica
 from auth.dependencies import get_current_user, get_redis_client
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
+from utils.serializers import ResponseData
 
 
 router = APIRouter(prefix="/auth")
@@ -345,3 +346,28 @@ async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.get("/verify-email", tags=["Authentication"])
+async def verify_email(code: str, redis_client: RedisClient = Depends(get_redis_client), db: AsyncSession = Depends(get_db)):
+    """
+    Endpoint to verify email using the provided verification code.
+    """
+    response_data = ResponseData.model_construct(success=False, message="Email verification failed!")
+    key = f"email_verification_code:{code}"
+    value = await redis_client.get(key)
+
+    if not value:
+        logger.error(f"Verification code '{code}' not found or expired.")
+        response_data.message = "Invalid or expired verification code."
+        return response_data.dict()
+
+    logger.info(f"Email successfully verified for code: {code}")
+    stmt = update(User).where(User.email == value).values(verified=True)
+    await db.execute(stmt)
+    await db.commit()
+    await redis_client.delete(key)
+    response_data.success = True
+    response_data.message = "Email verified successfully!"
+
+    return response_data.dict()
