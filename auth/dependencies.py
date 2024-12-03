@@ -13,7 +13,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Could not validate credentials. Please verify if already registered",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -29,7 +29,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
             raise credentials_exception
 
 
-        user_result = await db.execute(select(User).where(User.email == email))
+        user_result = await db.execute(select(User).where(User.email == email, User.verified== True))
         user = user_result.scalars().first()
         if user is None:
             logging.error("User not found in database")
