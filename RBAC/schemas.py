@@ -1,12 +1,31 @@
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
-from typing import Optional, List
+
 
 class OrganizationCreate(BaseModel):
     name: str
 
     class Config:
         from_attributes = True
+
+
+class TeamCreate(BaseModel):
+    name: str
+    organization_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class RoleRead(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+
+    class Config:
+        from_attributes = True
+
 
 class OrganizationRead(BaseModel):
     id: int
@@ -16,34 +35,56 @@ class OrganizationRead(BaseModel):
     class Config:
         from_attributes = True
 
-class TeamCreate(BaseModel):
-    organization_id: int
-    name: str
 
-    class Config:
-        from_attributes = True
-
-class TeamRead(BaseModel):
+class UserRead(BaseModel):
     id: int
-    organization_id: int
-    name: str
+    email: str
+    full_name: Optional[str]
 
     class Config:
         from_attributes = True
+
 
 class OrganizationUserRead(BaseModel):
     id: int
-    organization_id: int
-    user_id: int
-    role: str
+    organization: OrganizationRead
+    user: UserRead
+    role: RoleRead
 
     class Config:
         from_attributes = True
 
+
+class TeamRead(BaseModel):
+    id: int
+    name: str
+    organization: OrganizationRead
+
+    class Config:
+        from_attributes = True
+
+
 class TeamMemberRead(BaseModel):
     id: int
-    team_id: int
-    user_id: int
+    team: TeamRead
+    user: UserRead
+    role: RoleRead
+
+    class Config:
+        from_attributes = True
+
+class PermissionBase(BaseModel):
+    name: str
+    description: str
+
+class PermissionCreate(PermissionBase):
+    pass
+
+class PermissionUpdate(PermissionBase):
+    pass
+
+class PermissionRead(PermissionBase):
+    id: int
 
     class Config:
         from_attributes = True

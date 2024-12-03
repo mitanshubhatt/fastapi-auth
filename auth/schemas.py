@@ -4,7 +4,9 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: Optional[str] = None
+    first_name: str
+    last_name: str
+    phone_number: str
     password: str
 
     @field_validator('password')
@@ -24,7 +26,9 @@ class UserCreate(BaseModel):
 
 class UserRead(BaseModel):
     email: EmailStr
-    full_name: Optional[str] = None
+    first_name: str
+    last_name: str
+    phone_number: str
 
 class Token(BaseModel):
     access_token: str

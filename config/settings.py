@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, Dict
 from utils.base_auth import BaseAuth
 
 from authlib.integrations.starlette_client import OAuth
@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     oauth_google: Optional[OAuth] = None
     oauth_microsoft: Optional[OAuth] = None
     oauth_github: Optional[OAuth] = None
+    
+    permissions: Optional[Dict] = None
 
     class Config:
         env_file = ".env"

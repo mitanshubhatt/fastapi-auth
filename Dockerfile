@@ -1,7 +1,15 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
-RUN apt-get update && apt-get install -y libsodium-dev
+# Install necessary dependencies
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    libsodium-dev \
+    openssl-dev \
+    build-base \
+    python3-dev
 
 # Set the working directory in the container
 WORKDIR /usr/src/app

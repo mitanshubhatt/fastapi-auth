@@ -19,54 +19,57 @@ from utils.custom_logger import logger
 
 router = APIRouter(prefix="/auth")
 
-@router.get('/microsoft')
+@router.get('/microsoft', tags=["Authentication"])
 async def microsoft_login(request: Request):
-    settings.oauth_microsoft = OAuth()
-    
-    settings.oauth_microsoft.register(
-        name='microsoft',
-        client_id=settings.microsoft_client_id,
-        client_secret=settings.microsoft_client_secret,
-        server_metadata_url='https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile',
-        }
-    )
+    if not settings.oauth_microsoft:
+        settings.oauth_microsoft = OAuth()
+        
+        settings.oauth_microsoft.register(
+            name='microsoft',
+            client_id=settings.microsoft_client_id,
+            client_secret=settings.microsoft_client_secret,
+            server_metadata_url='https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
+            client_kwargs={
+                'scope': 'openid email profile',
+            }
+        )
     
     redirect_uri = request.url_for('microsoft_auth_callback')
     return await settings.oauth_microsoft.microsoft.authorize_redirect(request, redirect_uri)
 
-@router.get('/google')
+@router.get('/google', tags=["Authentication"])
 async def google_login(request: Request):
-    settings.oauth_google = OAuth()
-    
-    settings.oauth_google.register(
-        name='google',
-        client_id=settings.google_client_id,
-        client_secret=settings.google_client_secret,
-        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'email openid profile',
-        }
-    )
+    if not settings.oauth_google:
+        settings.oauth_google = OAuth()
+        
+        settings.oauth_google.register(
+            name='google',
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={
+                'scope': 'email openid profile',
+            }
+        )
     
     redirect_uri = request.url_for('google_auth_callback')
     return await settings.oauth_google.google.authorize_redirect(request, redirect_uri)
 
 
-@router.get('/github/login')
+@router.get('/github', tags=["Authentication"])
 async def github_login(request: Request):
     """Redirects user to GitHub for authentication."""
-    settings.oauth_github = OAuth()
-    settings.oauth_github.register(
-        name='github',
-        client_id=settings.github_client_id,
-        client_secret=settings.github_client_secret,
-        access_token_url='https://github.com/login/oauth/access_token',
-        authorize_url='https://github.com/login/oauth/authorize',
-        api_base_url='https://api.github.com/',
-        client_kwargs={'scope': 'user:email'},
-    )
+    if not settings.oauth_github:
+        settings.oauth_github = OAuth()
+        settings.oauth_github.register(
+            name='github',
+            client_id=settings.github_client_id,
+            client_secret=settings.github_client_secret,
+            access_token_url='https://github.com/login/oauth/access_token',
+            authorize_url='https://github.com/login/oauth/authorize',
+            api_base_url='https://api.github.com/',
+            client_kwargs={'scope': 'user:email'},
+        )
     redirect_uri = request.url_for('github_callback')
     return await settings.oauth_github.github.authorize_redirect(request, redirect_uri)
 
