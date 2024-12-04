@@ -28,7 +28,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
     return user
 
 
-async def send_email_verification(redis_client, email, first_name):
+async def send_email_verification(redis_client, email, first_name, title):
     """
     Sends an email verification link to the specified email.
 
@@ -43,9 +43,8 @@ async def send_email_verification(redis_client, email, first_name):
     try:
         # Generate a unique verification token
         verification_token = uuid.uuid4()
-        token_key = f"email_verification:{verification_token}"
+        token_key = f"{title}:{verification_token}"
 
-        # Store the token in Redis with an expiration time
         await redis_client.set(token_key, email, expire=timedelta(hours=24))
 
         verification_url = urljoin(
@@ -71,3 +70,4 @@ async def send_email_verification(redis_client, email, first_name):
     except Exception as e:
         logger.error(f"Failed to send verification email: {e}")
         raise e
+

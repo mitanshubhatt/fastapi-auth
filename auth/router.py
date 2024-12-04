@@ -1,4 +1,5 @@
-import uuid
+import json
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from auth.dependencies import get_current_user, get_redis_client
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
 from utils.serializers import ResponseData
+from RBAC.utils import add_user_to_organization
 
 
 router = APIRouter(prefix="/auth")
@@ -78,7 +80,7 @@ async def github_login(request: Request):
     return await settings.oauth_github.github.authorize_redirect(request, redirect_uri)
 
 @router.post("/register", response_model=UserRead, tags=["Authentication"])
-async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), redis_client: RedisClient = Depends(get_redis_client)):
+async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, code: Optional[str] = None, db: AsyncSession = Depends(get_db), redis_client: RedisClient = Depends(get_redis_client)):
     """Endpoint for registering new user
 
     Args:
@@ -104,29 +106,38 @@ async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, db: 
             )
 
         hashed_password = await get_password_hash(user.password)
+        verification_required = True
+        if code:
+            verification_required = False
+
         db_user = User(
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
             hashed_password=hashed_password,
-            verified=False,
+            verified=not verification_required,
             phone_number=user.phone_number
         )
 
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
-        background_tasks.add_task(
-            send_email_verification,
-            redis_client=redis_client,
-            email=db_user.email,
-            first_name=db_user.first_name,
-        )
         
-        logger.info("User registered successfully. Verification email sent.")
-        return db_user
+        if not code:
+            background_tasks.add_task(
+                send_email_verification,
+                redis_client=redis_client,
+                email=db_user.email,
+                first_name=db_user.first_name,
+                title="email_verification"
+            )
+            logger.info("User registered successfully. Verification email sent.")
+            
+        else:
+            redis_code_value = await redis_client.get(code)
+            json_object = json.loads(redis_code_value)
+            return await add_user_to_organization(db_user.id, json_object.organization_id, json_object.role_id, db)
     except ValidationError as e:
-        # Handle validation errors from Pydantic
         logger.error(f"Validation error: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
