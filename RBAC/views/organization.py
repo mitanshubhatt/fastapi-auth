@@ -69,21 +69,16 @@ async def assign_user_to_organization_view(
         user = await db.execute(select(User).where(User.email == user_email))
         user = user.scalars().first()
         if not user:
-            invitation_key = f"user_invitation:{user_email}"
-            invitation_exists = await redis_client.get(invitation_key)
             response_data.success = False
-            if not invitation_exists:
-                background_tasks.add_task(
-                    send_invite_email,
-                    redis_client=redis_client,
-                    email=user_email,
-                    title="invitation_email",
-                    organization_id=organization_id,
-                    role_id=role_id,
-                )
-                response_data.message = "User not found. Invitation sent."
-            else:
-                response_data.message = "User not found. Invitation already sent."
+            background_tasks.add_task(
+                send_invite_email,
+                redis_client=redis_client,
+                email=user_email,
+                title="invitation_email",
+                organization_id=organization_id,
+                role_id=role_id,
+            )
+            response_data.message = "User not found. Invitation sent."
             return response_data.dict()
 
         return await add_user_to_organization(user.id, organization_id, role_id, db)
