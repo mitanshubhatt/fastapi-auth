@@ -5,6 +5,8 @@ from RBAC.models import Role, OrganizationUser, TeamMember
 from utils.custom_logger import logger
 from utils.serializers import ResponseData
 
+from config.settings import settings
+
 
 async def get_roles_view(db: AsyncSession):
     """
@@ -12,13 +14,16 @@ async def get_roles_view(db: AsyncSession):
     """
     response_data = ResponseData.model_construct(success=False, message="Failed to retrieve roles")
     try:
-        result = await db.execute(select(Role))
-        roles = result.scalars().all()
-        response_data.success = True
-        response_data.message = "Roles retrieved successfully"
-        response_data.data = [
-            {"id": role.id, "name": role.name, "description": role.description} for role in roles
-        ]
+        if not settings.roles:
+            result = await db.execute(select(Role))
+            roles = result.scalars().all()
+            response_data.success = True
+            response_data.message = "Roles retrieved successfully"
+            response_data.data = [
+                {"id": role.id, "name": role.name, "description": role.description, "scope": role.scope} for role in roles
+            ]
+        else:
+            response_data.data = settings.roles
         return response_data.dict()
     except Exception as e:
         logger.error(f"Error retrieving roles: {e}")

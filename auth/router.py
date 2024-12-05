@@ -1,4 +1,5 @@
-import uuid
+import json
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,11 +15,12 @@ from db.pg_connection import get_db
 from config.settings import settings
 from auth.models import User, RefreshToken, AuthType
 from auth.schemas import UserCreate, UserRead, Token
-from auth.utils import get_password_hash, authenticate_user, send_email_verification
+from auth.utils import get_password_hash, authenticate_user, send_email_verification, send_forgot_password_email
 from auth.dependencies import get_current_user, get_redis_client
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
 from utils.serializers import ResponseData
+from RBAC.utils import add_user_to_organization
 
 
 router = APIRouter(prefix="/auth")
@@ -78,7 +80,7 @@ async def github_login(request: Request):
     return await settings.oauth_github.github.authorize_redirect(request, redirect_uri)
 
 @router.post("/register", response_model=UserRead, tags=["Authentication"])
-async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), redis_client: RedisClient = Depends(get_redis_client)):
+async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, code: Optional[str] = None, db: AsyncSession = Depends(get_db), redis_client: RedisClient = Depends(get_redis_client)):
     """Endpoint for registering new user
 
     Args:
@@ -104,29 +106,38 @@ async def create_user(user: UserCreate,  background_tasks: BackgroundTasks, db: 
             )
 
         hashed_password = await get_password_hash(user.password)
+        verification_required = True
+        if code:
+            verification_required = False
+
         db_user = User(
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
             hashed_password=hashed_password,
-            verified=False,
+            verified=not verification_required,
             phone_number=user.phone_number
         )
 
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
-        background_tasks.add_task(
-            send_email_verification,
-            redis_client=redis_client,
-            email=db_user.email,
-            first_name=db_user.first_name,
-        )
         
-        logger.info("User registered successfully. Verification email sent.")
-        return db_user
+        if not code:
+            background_tasks.add_task(
+                send_email_verification,
+                redis_client=redis_client,
+                email=db_user.email,
+                first_name=db_user.first_name,
+                title="email_verification"
+            )
+            logger.info("User registered successfully. Verification email sent.")
+            
+        else:
+            redis_code_value = await redis_client.get("invitation_email:" + code)
+            json_object = json.loads(redis_code_value)
+            return await add_user_to_organization(db_user.id, json_object.organization_id, json_object.role_id, db)
     except ValidationError as e:
-        # Handle validation errors from Pydantic
         logger.error(f"Validation error: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -370,4 +381,83 @@ async def verify_email(code: str, redis_client: RedisClient = Depends(get_redis_
     response_data.success = True
     response_data.message = "Email verified successfully!"
 
+    return response_data.dict()
+
+
+@router.post("/forgot-password")
+async def forgot_password(email: str, background_tasks: BackgroundTasks, redis_client=Depends(get_redis_client), db: AsyncSession = Depends(get_db)):
+    """
+    Initiates the process for a user to reset their password by sending a password reset email.
+
+    Parameters:
+    - email (str): The email address of the user who wants to reset their password.
+    - background_tasks (BackgroundTasks): An instance to manage background tasks, used to send the email asynchronously.
+    - redis_client: A dependency injection for the Redis client, used for caching or session management.
+    - db (AsyncSession): A dependency injection for the database session, used to query the user information.
+
+    Returns:
+    - dict: A dictionary containing the success status and a message indicating the result of the operation.
+
+    Raises:
+    - No explicit exceptions are raised, but it assumes the presence of a user with the given email in the database.
+    - If the user is not found, the function returns a message indicating "User not found".
+    """
+    response_data = ResponseData.model_construct(success=False, message="Failed to send password reset email")
+    user = await db.execute(select(User).where(User.email == email))
+    user = user.scalars().first()
+
+    if not user:
+        response_data.message("User not found")
+        return response_data.dict()
+
+    background_tasks.add_task(
+        send_forgot_password_email,
+        redis_client=redis_client,
+        email=email,
+        first_name=user.first_name,
+        title="forgot_password"
+    )
+    logger.info("User registered successfully. Verification email sent.")
+    response_data.success = True
+    response_data.message = "Password reset email sent"
+    return response_data.dict()
+
+
+@router.post("/reset-password")
+async def reset_password(code: str, new_password: str, redis_client=Depends(get_redis_client), db: AsyncSession = Depends(get_db)):
+    """
+    Resets the password for a user identified by a unique code.
+
+    Parameters:
+    - code (str): A unique string used to identify the password reset request.
+    - new_password (str): The new password to be set for the user.
+    - redis_client: A Redis client instance used to retrieve and delete the password reset code. 
+      It is injected using dependency injection with `Depends(get_redis_client)`.
+    - db (AsyncSession): An asynchronous database session used to execute the update query. 
+      It is injected using dependency injection with `Depends(get_db)`.
+
+    Returns:
+    - dict: A dictionary containing the success status and a message indicating the result of the operation.
+
+    Raises:
+    - No explicit exceptions are raised, but it assumes that the Redis client and database operations 
+      are successful. If the code is not found in Redis, it returns a failure message.
+    """
+    response_data = ResponseData.model_construct(success=False, message="Failed to reset password")
+    
+    email = await redis_client.get(f"forgot_password:{code}")
+
+    if not email:
+        response_data.message("User not found")
+        return response_data.dict()
+
+    hashed_password = await get_password_hash(new_password)
+    stmt = update(User).where(User.email == email).values(hashed_password=hashed_password)
+    await db.execute(stmt)
+    await db.commit()
+
+    await redis_client.delete(f"forgot_password:{code}")
+
+    response_data.success = True
+    response_data.message = "Password has been reset successfully"
     return response_data.dict()

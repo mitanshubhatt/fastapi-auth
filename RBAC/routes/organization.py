@@ -5,6 +5,8 @@ from db.pg_connection import get_db
 from auth.dependencies import get_current_user
 from RBAC.views.organization import create_organization_view, assign_user_to_organization_view
 from RBAC.schemas import OrganizationCreate
+from auth.dependencies import get_redis_client
+from db.redis_connection import RedisClient
 
 router = APIRouter(prefix="/rbac/organizations", tags=["Organizations"])
 
@@ -22,6 +24,7 @@ async def assign_user_to_organization(
     organization_id: int,
     role_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    redis_client: RedisClient = Depends(get_redis_client)
 ):
-    return await assign_user_to_organization_view(user_email, organization_id, role_id, db, current_user)
+    return await assign_user_to_organization_view(user_email, organization_id, role_id, db, current_user, redis_client)

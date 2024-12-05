@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     smtp_from_email: str = "no-reply@gofynd.com"
     smtp_netcore: Optional[str] = None
     
-    
+    roles: Optional[Dict] = None
     
     redis_client: Optional[RedisClient] = None
     
