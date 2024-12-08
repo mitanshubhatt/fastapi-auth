@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from sqlalchemy.orm import Session
 from RBAC.models import Role, RolePermission
+from db.pg_connection import get_db
 
 def get_effective_permissions(role: str, scope: str) -> dict:
     """
@@ -133,6 +134,24 @@ class PermissionMiddleware(BaseHTTPMiddleware):
         raise HTTPException(status_code=400, detail=f"{context_type.capitalize()} ID not found in the endpoint")
     
     
+async def initialize_roles():
+    """
+    Fetch roles from the database and store them in a global dictionary on server startup.
+    """
+    db = await anext(get_db())
+    result = await db.execute(select(Role))
+    roles = result.scalars().all()
+    settings.roles = [
+        {
+            "id": role.id,
+            "name": role.name,
+            "description": role.description,
+            "scope": role.scope,
+        }
+        for role in roles
+    ]
+    await db.close()
+
 def build_permissions():
     settings.permissions = {
     "organization": {

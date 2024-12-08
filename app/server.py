@@ -8,9 +8,8 @@ from auth.router import router as auth_router
 from db.pg_connection import get_db
 from config.settings import settings
 from utils.utilities import get_auth_instance
-from utils.permission_middleware import PermissionMiddleware, build_permissions
+from utils.permission_middleware import PermissionMiddleware, build_permissions, initialize_roles
 from db.redis_connection import RedisClient
-from db.pg_connection import initialize_roles
 
 from RBAC.routes.organization import router as org_router
 from RBAC.routes.teams import router as teams_router
