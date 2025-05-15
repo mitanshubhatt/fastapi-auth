@@ -69,6 +69,9 @@ async def send_invite_email(redis_client, email, organization_id, role_id, title
 
     Args:
         redis_client: Redis client for storing verification tokens.
+        organization_id: organization id
+        role_id: Role id
+        title: Title of the mail
         email: User's email address.
 
     Raises:
@@ -144,9 +147,9 @@ async def add_user_to_organization(
 
         response_data.success = True
         response_data.message = "User added to organization successfully"
-        return response_data.dict()
+        return response_data.model_dump()
     except Exception as e:
         logger.error(f"Error adding user to organization: {e}")
         response_data.message = "Internal server error"
         response_data.errors = [str(e)]
-        return response_data.dict()
+        return response_data.model_dump()

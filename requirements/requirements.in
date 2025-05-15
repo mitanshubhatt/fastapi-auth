@@ -1,6 +1,7 @@
 fastapi==0.111.0
 passlib==1.7.4
 pydantic==2.7.4
+asyncpg==0.29.0
 pydantic_settings==2.3.3
 alembic==1.12.0
 python_jose==3.3.0
@@ -18,3 +19,4 @@ aiosqlite==0.20.0
 pytest-asyncio==0.24.0
 greenlet==3.1.1
 redis==5.2.0
+psycopg2-binary==2.9.9

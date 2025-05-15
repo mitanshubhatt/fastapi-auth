@@ -12,8 +12,8 @@ services:
       - REFRESH_TOKEN_EXPIRE_DAYS=7
       - SECRET_KEY=oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E
       - ALGORITHM=HS256
-      - DATABASE_URL=your//:database.url
-      - AUTH_MODE=paseto
+      - DATABASE_URL=postgresql+asyncpg://authdb_owner:0MFqZ9rjyEUX@ep-falling-dust-a1nu2soz-pooler.ap-southeast-1.aws.neon.tech/authdb?sslmode=require
+      - AUTH_MODE=jwt
       - GOOGLE_CLIENT_ID=temp
       - GOOGLE_CLIENT_SECRET=temp
       - GITHUB_CLIENT_ID=temp

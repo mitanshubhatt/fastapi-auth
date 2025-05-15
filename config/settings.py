@@ -8,12 +8,12 @@ from db.redis_connection import RedisClient
 
 
 class Settings(BaseSettings):
-    access_token_expire_minutes: int
-    refresh_token_expire_days: int
-    secret_key: str
-    algorithm: str
-    database_url: str
-    auth_mode: str
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 1
+    secret_key: str = "oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E"
+    algorithm: str = "HS256"
+    database_url: str = "postgresql+asyncpg://authdb_owner:0MFqZ9rjyEUX@ep-falling-dust-a1nu2soz-pooler.ap-southeast-1.aws.neon.tech/authdb"
+    auth_mode: str = "jwt"
     paseto_private_key: Optional[str] = None
     paseto_public_key: Optional[str] = None
     auth_instance: Optional[BaseAuth] = None
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     oauth_microsoft: Optional[OAuth] = None
     oauth_github: Optional[OAuth] = None
     redis_database_url: Optional[str] = None
-    hinata_host: str = None
+    hinata_host: Optional[str] = None
     email_provider: str = "netcore"
     smtp_from_email: str = "no-reply@gofynd.com"
     smtp_netcore: Optional[str] = None
