@@ -42,9 +42,9 @@ class TeamService:
 
         # 2. Create Team
         try:
-            db_team = await self.team_dao.create_team(db, team_create_data)
+            db_team = await self.team_dao.create_team(team_create_data)
             return TeamRead.model_validate(db_team)
-        except Exception as e:  # Catch potential DB errors from DAO
+        except Exception as e:
             logger.error(f"Error during team creation in service: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -95,7 +95,6 @@ class TeamService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Invalid role scope for team assignment.")
 
-        # 4. Check if user is already in the team
         existing_membership = await self.team_dao.get_team_member(user_id=target_user.id, team_id=team_id)
         if existing_membership:
             logger.info(f"User {plain_user_email} is already a member of team {team_id}.")
@@ -106,13 +105,12 @@ class TeamService:
 
         # 5. Assign user to team
         try:
-            # For denormalization, we need user's encrypted email and name
-            encrypted_target_email = target_user.email  # This is already encrypted from UserDAO
+            encrypted_target_email = target_user.email
             user_full_name = f"{target_user.first_name} {target_user.last_name}".strip()
 
             await self.team_dao.add_user_to_team(
                 team_id, target_user.id, role_id,
-                user_email=encrypted_target_email,
+                user_email_encrypted=encrypted_target_email,
                 user_name=user_full_name,
                 role_name=target_role.name
             )
