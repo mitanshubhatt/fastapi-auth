@@ -22,6 +22,7 @@ class Permission(Base):
     __tablename__ = 'permissions'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, index=True)  # Permission name
+    name = Column(String, unique=True, index=True)
     description = Column(String)
+    slug = Column(String, unique=True, index=True)
     scope = Column(Enum("organization", "team", name="permission_scope"), nullable=False, index=True)

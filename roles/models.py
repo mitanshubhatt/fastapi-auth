@@ -23,5 +23,6 @@ class Role(Base):
     name = Column(String, unique=True, index=True)
     description = Column(String)
     scope = Column(Enum("organization", "team", name="role_scope"), nullable=False, index=True)
+    slug = Column(String, index=True, unique=True)
 
     permissions_cache = Column(Text)

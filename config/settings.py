@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 1
     secret_key: str = "oGZGMadkunyMgtSxgV8dFg2UWkaqxYUvopvsvK7axrm61UekefE7mQrhQLJTt37E"
     algorithm: str = "HS256"
-    database_url: str = "postgresql+asyncpg://authdb_owner:0MFqZ9rjyEUX@ep-falling-dust-a1nu2soz-pooler.ap-southeast-1.aws.neon.tech/authdb"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/fast_auth"
     auth_mode: str = "jwt"
     encryption_key: str = "lOWuM2K1nGFOzzL+33Nm67Aa55ZaTB37glUeZIbVCmY="
     paseto_private_key: Optional[str] = None
