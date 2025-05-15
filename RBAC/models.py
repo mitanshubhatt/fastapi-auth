@@ -1,95 +1,120 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import relationship
-from db.pg_connection import Base
-from datetime import datetime
+import time
 
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Index, Text
+from db.pg_connection import Base
 
 
 class RolePermission(Base):
     __tablename__ = 'role_permission'
 
-    id = Column(Integer, primary_key=True, index=True)
-    role_id = Column(Integer, ForeignKey('roles.id'))
-    permission_id = Column(Integer, ForeignKey('permissions.id'))
+    id = Column(Integer, primary_key=True)
+    role_id = Column(Integer, ForeignKey('roles.id'), nullable=False, index=True)
+    permission_id = Column(Integer, ForeignKey('permissions.id'), nullable=False, index=True)
 
-    role = relationship("Role", back_populates="role_permissions")
-    permission = relationship("Permission", back_populates="role_permissions")
+    permission_name = Column(String)
+
+    __table_args__ = (
+        Index('idx_role_permission_unique', 'role_id', 'permission_id', unique=True),
+    )
+
 
 class Organization(Base):
     __tablename__ = "organizations"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    creation_date = Column(DateTime, default=datetime.utcnow)
+    name = Column(String, nullable=False, index=True)
+    creation_epoch = Column(Integer, default=int(time.time()))
 
-    organization_users = relationship("OrganizationUser", back_populates="organization")
-    teams = relationship("Team", back_populates="organization")
+    user_count = Column(Integer, default=0)
+    team_count = Column(Integer, default=0)
+
+    __table_args__ = (
+        Index('idx_org_name_date', 'name', 'creation_epoch'),
+    )
+
 
 class OrganizationUser(Base):
     __tablename__ = "organization_users"
 
     id = Column(Integer, primary_key=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))  # Assuming User model is defined elsewhere with 'id' as PK
-    role_id = Column(Integer, ForeignKey("roles.id"))
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False, index=True)
 
-    organization = relationship("Organization", back_populates="organization_users")
-    user = relationship("User", back_populates="organization_users", foreign_keys=[user_id])
-    role = relationship("Role", back_populates="organization_users")
+    # Denormalize key information from related tables
+    role_name = Column(String)  # Denormalized role name for quick access
+    user_name = Column(String)  # Denormalized user name for quick listing
+
+    __table_args__ = (
+        # Composite indexes for common access patterns
+        Index('idx_org_user', 'organization_id', 'user_id', unique=True),
+        Index('idx_user_role', 'user_id', 'role_id'),
+    )
+
 
 class Team(Base):
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"))
-    name = Column(String, nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    name = Column(String, nullable=False, index=True)
 
-    organization = relationship("Organization", back_populates="teams")
-    team_members = relationship("TeamMember", back_populates="team")
+    # Denormalized fields
+    member_count = Column(Integer, default=0)  # Counter cache for members
+
+    __table_args__ = (
+        # Composite index for organization teams lookups
+        Index('idx_team_org_name', 'organization_id', 'name', unique=True),
+    )
+
 
 class TeamMember(Base):
     __tablename__ = "team_members"
 
     id = Column(Integer, primary_key=True)
-    team_id = Column(Integer, ForeignKey("teams.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))  # Assuming User model is defined elsewhere with 'id' as PK
-    role_id = Column(Integer, ForeignKey("roles.id"))
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False, index=True)
 
-    team = relationship("Team", back_populates="team_members")
-    user = relationship("User", back_populates="team_members", foreign_keys=[user_id])
-    role = relationship("Role", back_populates="team_members")
+    role_name = Column(String)  # Denormalized role name
+    user_email = Column(String)  # Denormalized user email for faster display
+    user_name = Column(String)  # Denormalized user name
+
+    __table_args__ = (
+        # Composite indexes for common access patterns
+        Index('idx_team_user', 'team_id', 'user_id', unique=True),
+        Index('idx_user_teams', 'user_id', 'team_id'),
+    )
+
 
 class Role(Base):
     __tablename__ = 'roles'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, index=True)
     description = Column(String)
-    scope = Column(Enum("organization", "team", name="role_scope"), nullable=False)
+    scope = Column(Enum("organization", "team", name="role_scope"), nullable=False, index=True)
 
-    role_permissions = relationship("RolePermission", back_populates="role")
-    organization_users = relationship("OrganizationUser", back_populates="role")
-    team_members = relationship("TeamMember", back_populates="role")
-    user_roles = relationship("UserRole", back_populates="role")
+    permissions_cache = Column(Text)
 
 
 class Permission(Base):
     __tablename__ = 'permissions'
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)  # Permission name (e.g., create_team, assign_task)
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, index=True)  # Permission name
     description = Column(String)
-    scope = Column(Enum("organization", "team", name="permission_scope"), nullable=False)  # Permission scope
-
-    role_permissions = relationship("RolePermission", back_populates="permission")
+    scope = Column(Enum("organization", "team", name="permission_scope"), nullable=False, index=True)
 
 
 class UserRole(Base):
     __tablename__ = 'user_roles'
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    role_id = Column(Integer, ForeignKey('roles.id'))
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    role_id = Column(Integer, ForeignKey('roles.id'), nullable=False, index=True)
+    role_name = Column(String)
 
-    user = relationship("User", back_populates="user_roles")
-    role = relationship("Role", back_populates="user_roles")
+    __table_args__ = (
+        Index('idx_user_role_lookup', 'user_id', 'role_id', unique=True),
+    )
