@@ -2,7 +2,10 @@ import uuid
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from RBAC.models import Role, RolePermission, OrganizationUser, TeamMember
+from organizations.models import OrganizationUser
+from teams.models import TeamMember
+from roles.models import Role
+from permissions.models import RolePermission
 from fastapi import HTTPException
 from datetime import timedelta
 from urllib.parse import urljoin

@@ -1,10 +1,8 @@
-
 import aiofiles
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 
-from auth.jwt_auth import JWTAuth
-from auth.paseto_auth import PasetoAuth
+from auth.strategies.jwt_auth import JWTAuth
+from auth.strategies.paseto_auth import PasetoAuth
 from config.settings import settings
 
 async def get_auth_instance():
@@ -34,4 +32,5 @@ async def get_auth_instance():
                 )
 
         return PasetoAuth()
+    return None
 

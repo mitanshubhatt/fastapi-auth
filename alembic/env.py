@@ -25,7 +25,10 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 
 import auth.models
-import RBAC.models
+import organizations.models
+import roles.models
+import teams.models
+import permissions.models
 target_metadata = [Base.metadata]
 
 

@@ -4,7 +4,7 @@ from config.settings import settings
 from utils.custom_logger import logger
 from auth.models import RefreshToken, TokenType
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.base_auth import BaseAuth
+from auth.strategies.base_auth import BaseAuth
 
 class JWTAuth(BaseAuth):
     async def create_access_token(self, data: dict, expires_delta: timedelta):
