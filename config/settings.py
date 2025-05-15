@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional, Dict
-from utils.base_auth import BaseAuth
+from auth.strategies.base_auth import BaseAuth
 
 from authlib.integrations.starlette_client import OAuth
 from db.redis_connection import RedisClient
@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     database_url: str = "postgresql+asyncpg://authdb_owner:0MFqZ9rjyEUX@ep-falling-dust-a1nu2soz-pooler.ap-southeast-1.aws.neon.tech/authdb"
     auth_mode: str = "jwt"
+    encryption_key: str = "lOWuM2K1nGFOzzL+33Nm67Aa55ZaTB37glUeZIbVCmY="
     paseto_private_key: Optional[str] = None
     paseto_public_key: Optional[str] = None
     auth_instance: Optional[BaseAuth] = None
