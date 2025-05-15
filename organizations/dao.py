@@ -3,7 +3,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import Optional
 
-from RBAC.models import Organization, OrganizationUser, Role
+from organizations.models import Organization, OrganizationUser
+from roles.models import Role
 from RBAC.schemas import OrganizationCreate
 from auth.models import User
 
