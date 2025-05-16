@@ -69,11 +69,11 @@ async def assign_user_to_team(
         raise HTTPException(status_code=500, detail=response_data.model_dump())
 
 
-async def remove_user_from_team_view(
+async def remove_user_from_team(
     team_id: int,
-    user_email: str, # Could also be part of a request body or query param
+    user_email: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user), # Replace with your actual dependency
+    current_user: User = Depends(get_current_user),
 ):
     """
     Remove a user from a team.
@@ -84,7 +84,7 @@ async def remove_user_from_team_view(
         await team_service.remove_user_from_team(
             user_email=user_email,
             team_id=team_id,
-            current_user=current_user # Pass current_user if service needs it for logging/permissions
+            current_user=current_user
         )
         response_data.success = True
         response_data.message = f"User {user_email} successfully removed from team {team_id}"
