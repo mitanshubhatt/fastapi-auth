@@ -2,8 +2,8 @@ from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from organizations.dao import OrganizationDAO
-from organizations.dao import UserDAO
-from RBAC.schemas import OrganizationCreate, OrganizationRead #
+from auth.dao import UserDAO
+from organizations.schemas import OrganizationCreate, OrganizationRead #
 from auth.models import User
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient

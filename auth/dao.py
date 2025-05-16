@@ -7,7 +7,7 @@ from utils.encryption import DataEncryptor  # Assuming DataEncryptor is in utils
 
 
 class UserDAO:
-    def __init__(self, encryptor: DataEncryptor, db: AsyncSession):
+    def __init__(self, db: AsyncSession, encryptor: Optional[DataEncryptor] = None):
         self.encryptor = encryptor
         self.db = db
 

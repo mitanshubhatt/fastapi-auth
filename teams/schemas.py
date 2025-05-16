@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from organizations.schemas import OrganizationRead
 from roles.schemas import RoleRead
@@ -41,3 +41,8 @@ class TeamMemberRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AssignUserToTeamRequest(BaseModel):
+    user_email: EmailStr
+    role_id: int

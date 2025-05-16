@@ -7,7 +7,7 @@ from auth.dependencies import get_current_user, get_redis_client
 from db.redis_connection import RedisClient
 
 from organizations.services import OrganizationService
-from RBAC.schemas import OrganizationCreate
+from organizations.schemas import OrganizationCreate
 from utils.serializers import ResponseData
 
 
