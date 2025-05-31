@@ -42,6 +42,53 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception from e
 
 
+async def get_current_user_email(token: str = Depends(oauth2_scheme)) -> str:
+    """Get current user's email from token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = await settings.auth_instance.verify_token(token)
+        if payload is None:
+            logging.error("Token verification failed: Payload is None")
+            raise credentials_exception
+
+        email: str = payload.get("sub")
+        if email is None:
+            logging.error("Token verification failed: Email is None")
+            raise credentials_exception
+
+        return email
+
+    except Exception as e:
+        logging.error(f"Exception during token verification: {e}")
+        raise credentials_exception from e
+
+
+async def get_current_user_token_payload(token: str = Depends(oauth2_scheme)) -> dict:
+    """Get current user's token payload"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = await settings.auth_instance.verify_token(token)
+        if payload is None:
+            logging.error("Token verification failed: Payload is None")
+            raise credentials_exception
+
+        return payload
+
+    except Exception as e:
+        logging.error(f"Exception during token verification: {e}")
+        raise credentials_exception from e
+
+
 async def get_redis_client() -> RedisClient:
     redis_client = RedisClient()
     await redis_client.connect()

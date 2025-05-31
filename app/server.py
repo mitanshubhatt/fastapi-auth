@@ -15,6 +15,7 @@ from organizations.routes import router as org_router
 from teams.routes import router as teams_router
 from roles.routes import router as roles_router
 from permissions.routes import router as perm_router
+from context.routes import router as context_router
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class DBSessionMiddleware(BaseHTTPMiddleware):
@@ -47,6 +48,7 @@ def make_middleware() -> list[Middleware]:
 
 def init_routers(app_: FastAPI) -> None:
     app_.include_router(auth_router)
+    app_.include_router(context_router)
     app_.include_router(org_router)
     app_.include_router(teams_router)
     app_.include_router(perm_router)

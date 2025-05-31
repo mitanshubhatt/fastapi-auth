@@ -1,13 +1,15 @@
 import json
 import secrets
 from datetime import timedelta, datetime
+from typing import Dict, Any, Optional
 from pyseto import Key, encode, decode
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import settings
 from utils.custom_logger import logger
 from auth.models import RefreshToken, TokenType
-from auth.strategies.base_auth import BaseAuth
+from utils.base_auth import BaseAuth
+from context.services import ContextService
 
 class PasetoAuth(BaseAuth):
     async def create_access_token(self, data: dict, expires_delta: timedelta):
@@ -28,6 +30,47 @@ class PasetoAuth(BaseAuth):
         expire = datetime.utcnow() + expires_delta
         data.update({"exp": expire.isoformat()})
         token = encode(key, json.dumps(data)).decode('utf-8')
+        return token
+
+    async def create_context_enriched_token(
+        self, 
+        user_email: str,
+        db: AsyncSession,
+        expires_delta: timedelta,
+        active_organization_id: Optional[int] = None,
+        active_team_id: Optional[int] = None,
+        custom_claims: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Creates a PASETO access token enriched with user's current context (active org/team).
+
+        Parameters:
+        - user_email (str): User's email address
+        - db (AsyncSession): Database session for querying user context
+        - expires_delta (timedelta): Token expiration duration
+        - active_organization_id (int, optional): ID of the active organization
+        - active_team_id (int, optional): ID of the active team
+        - custom_claims (dict, optional): Additional custom claims
+
+        Returns:
+        - str: The encoded PASETO token as a string.
+        """
+        context_service = ContextService(db)
+        
+        # Create enriched payload with context
+        payload_data = await context_service.create_context_enriched_payload(
+            user_email=user_email,
+            active_organization_id=active_organization_id,
+            active_team_id=active_team_id,
+            custom_claims=custom_claims
+        )
+        
+        # Add expiration
+        expire = datetime.utcnow() + expires_delta
+        payload_data.update({"exp": expire.isoformat()})
+        
+        key = Key.new(version=2, key=settings.paseto_private_key, type="public")
+        token = encode(key, json.dumps(payload_data)).decode('utf-8')
         return token
 
     async def create_refresh_token(self, data: dict, expires_delta: timedelta, db: AsyncSession):
@@ -67,7 +110,6 @@ class PasetoAuth(BaseAuth):
 
         Parameters:
         - token (str): The token string that needs to be verified.
-        - db (AsyncSession): The asynchronous database session, though not used in the current implementation.
 
         Returns:
         - dict: A dictionary containing the decoded payload if the token is valid and not expired.
@@ -88,4 +130,4 @@ class PasetoAuth(BaseAuth):
             return payload_json
         except Exception:
             logger.error(f"Token verification for {settings.auth_mode} failed!")
-            return None
+            return None 

@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
 from jose import jwt
 from config.settings import settings
 from utils.custom_logger import logger
 from auth.models import RefreshToken, TokenType
 from sqlalchemy.ext.asyncio import AsyncSession
-from auth.strategies.base_auth import BaseAuth
+from utils.base_auth import BaseAuth
+from context.services import ContextService
 
 class JWTAuth(BaseAuth):
     async def create_access_token(self, data: dict, expires_delta: timedelta):
@@ -25,6 +27,46 @@ class JWTAuth(BaseAuth):
         expire = datetime.utcnow() + expires_delta
         to_encode.update({"exp": expire.isoformat()})
         encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+        return encoded_jwt
+
+    async def create_context_enriched_token(
+        self, 
+        user_email: str,
+        db: AsyncSession,
+        expires_delta: timedelta,
+        active_organization_id: Optional[int] = None,
+        active_team_id: Optional[int] = None,
+        custom_claims: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Creates a JWT access token enriched with user's current context (active org/team).
+
+        Parameters:
+        - user_email (str): User's email address
+        - db (AsyncSession): Database session for querying user context
+        - expires_delta (timedelta): Token expiration duration
+        - active_organization_id (int, optional): ID of the active organization
+        - active_team_id (int, optional): ID of the active team
+        - custom_claims (dict, optional): Additional custom claims
+
+        Returns:
+        - str: The encoded JWT as a string.
+        """
+        context_service = ContextService(db)
+        
+        # Create enriched payload with context
+        payload_data = await context_service.create_context_enriched_payload(
+            user_email=user_email,
+            active_organization_id=active_organization_id,
+            active_team_id=active_team_id,
+            custom_claims=custom_claims
+        )
+        
+        # Add expiration
+        expire = datetime.utcnow() + expires_delta
+        payload_data.update({"exp": expire.isoformat()})
+        
+        encoded_jwt = jwt.encode(payload_data, settings.secret_key, algorithm=settings.algorithm)
         return encoded_jwt
 
     async def create_refresh_token(self, data: dict, expires_delta: timedelta, db: AsyncSession):
@@ -80,4 +122,4 @@ class JWTAuth(BaseAuth):
                     return None
             return payload
         except jwt.JWTError:
-            return None
+            return None 
