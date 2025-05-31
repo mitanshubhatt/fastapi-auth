@@ -8,14 +8,15 @@ from context.schemas import (
 )
 from context.services import ContextService, extract_context_from_token
 from db.pg_connection import get_db
-from auth.dependencies import get_current_user_email, get_current_user_token_payload
+from auth.dependencies import get_current_user, get_current_user_token_payload
+from auth.models import User
 from config.settings import settings
 from utils.custom_logger import logger
 
 
 async def switch_organization(
     request: SwitchOrganizationRequest,
-    current_user_email: str = Depends(get_current_user_email),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> TokenResponse:
     """
@@ -26,7 +27,7 @@ async def switch_organization(
         
         # Validate user has access to the organization
         has_access = await context_service.validate_user_access_to_organization(
-            current_user_email, request.organization_id
+            current_user.id, request.organization_id
         )
         
         if not has_access:
@@ -37,7 +38,7 @@ async def switch_organization(
         
         # Create new token with the organization context
         new_token = await context_service.create_new_token_with_context(
-            user_email=current_user_email,
+            user_email=current_user.email,
             organization_id=request.organization_id,
             team_id=None  # Reset team when switching orgs
         )
@@ -46,7 +47,7 @@ async def switch_organization(
         payload = await settings.auth_instance.verify_token(new_token)
         context = extract_context_from_token(payload)
         
-        logger.info(f"User {current_user_email} switched to organization {request.organization_id}")
+        logger.info(f"User {current_user.email} switched to organization {request.organization_id}")
         
         return TokenResponse(
             access_token=new_token,
@@ -67,7 +68,7 @@ async def switch_organization(
 
 async def switch_team(
     request: SwitchTeamRequest,
-    current_user_email: str = Depends(get_current_user_email),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> TokenResponse:
     """
@@ -78,7 +79,7 @@ async def switch_team(
         
         # Validate user has access to the team
         has_access = await context_service.validate_user_access_to_team(
-            current_user_email, request.team_id
+            current_user.id, request.team_id
         )
         
         if not has_access:
@@ -98,7 +99,7 @@ async def switch_team(
         
         # Create new token with the team context
         new_token = await context_service.create_new_token_with_context(
-            user_email=current_user_email,
+            user_email=current_user.email,
             organization_id=team.organization_id,
             team_id=request.team_id
         )
@@ -107,7 +108,7 @@ async def switch_team(
         payload = await settings.auth_instance.verify_token(new_token)
         context = extract_context_from_token(payload)
         
-        logger.info(f"User {current_user_email} switched to team {request.team_id}")
+        logger.info(f"User {current_user.email} switched to team {request.team_id}")
         
         return TokenResponse(
             access_token=new_token,
@@ -128,7 +129,7 @@ async def switch_team(
 
 async def switch_context(
     request: SwitchContextRequest,
-    current_user_email: str = Depends(get_current_user_email),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> TokenResponse:
     """
@@ -140,7 +141,7 @@ async def switch_context(
         # Validate access to organization if provided
         if request.organization_id:
             has_org_access = await context_service.validate_user_access_to_organization(
-                current_user_email, request.organization_id
+                current_user.id, request.organization_id
             )
             if not has_org_access:
                 raise HTTPException(
@@ -151,7 +152,7 @@ async def switch_context(
         # Validate access to team if provided
         if request.team_id:
             has_team_access = await context_service.validate_user_access_to_team(
-                current_user_email, request.team_id
+                current_user.id, request.team_id
             )
             if not has_team_access:
                 raise HTTPException(
@@ -172,7 +173,7 @@ async def switch_context(
         
         # Create new token with the specified context
         new_token = await context_service.create_new_token_with_context(
-            user_email=current_user_email,
+            user_email=current_user.email,
             organization_id=request.organization_id,
             team_id=request.team_id
         )
@@ -181,7 +182,7 @@ async def switch_context(
         payload = await settings.auth_instance.verify_token(new_token)
         context = extract_context_from_token(payload)
         
-        logger.info(f"User {current_user_email} switched context - org: {request.organization_id}, team: {request.team_id}")
+        logger.info(f"User {current_user.email} switched context - org: {request.organization_id}, team: {request.team_id}")
         
         return TokenResponse(
             access_token=new_token,
@@ -219,7 +220,7 @@ async def get_current_context(
 
 
 async def get_available_contexts(
-    current_user_email: str = Depends(get_current_user_email),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> AvailableContextsResponse:
     """
@@ -227,7 +228,7 @@ async def get_available_contexts(
     """
     try:
         context_service = ContextService(db)
-        return await context_service.get_available_contexts(current_user_email)
+        return await context_service.get_available_contexts(current_user.id)
         
     except Exception as e:
         logger.error(f"Error getting available contexts: {str(e)}")
