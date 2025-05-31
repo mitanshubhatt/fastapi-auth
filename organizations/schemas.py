@@ -1,6 +1,6 @@
 import re
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, ConfigDict
 from typing import Optional
 
 from auth.schemas import UserRead
@@ -8,11 +8,10 @@ from roles.schemas import RoleRead
 
 
 class OrganizationCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     name: str
     slug: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
     @model_validator(mode='after')
     def generate_slug_from_name(self):
@@ -29,35 +28,31 @@ class OrganizationCreate(BaseModel):
 
 
 class OrganizationUpdate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     name: Optional[str] = None
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class OrganizationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     name: str
     creation_date: int
 
-    class Config:
-        from_attributes = True
-
 
 class OrganizationUserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     organization: OrganizationRead
     user: UserRead
     role: RoleRead
 
-    class Config:
-        from_attributes = True
-
 
 class AssignUserRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     user_email: str
     role_id: int
-
-    class Config:
-        from_attributes = True
