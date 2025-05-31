@@ -14,39 +14,96 @@ from collections import defaultdict
 
 from sqlalchemy.orm import Session
 from RBAC.models import Role, RolePermission
+from permissions.models import Permission
 from db.pg_connection import get_db
 
 def get_effective_permissions(role: str, scope: str) -> dict:
     """
     Get the effective permissions for a role, including inherited permissions.
     Handles wildcard routes for roles like Admin or Super Admin.
+    Uses cached permissions for better performance.
     """
+    try:
+        # Use cache utility function for consistency
+        from utils.permission_cache import get_user_permissions
+        
+        # Get permissions from cache
+        permissions = get_user_permissions(role, scope)
+        
+        # If permissions found in cache, return them
+        if permissions:
+            logger.debug(f"Retrieved effective permissions for role {role}, scope {scope} from cache")
+            return permissions
+        
+        # Fallback to original logic if cache is empty
+        logger.warning(f"Cache miss for role {role}, scope {scope}, using fallback permissions")
+        
+        permissions = {}
+        current_role = role
 
-    permissions = {}
-    current_role = role
+        while current_role:
+            role_data = settings.permissions.get(scope, {}).get(current_role)
+            if role_data:
+                # Check for wildcard permissions
+                if "*" in role_data["routes"]:
+                    # Add wildcard routes with all HTTP methods
+                    permissions["*"] = set(role_data["routes"]["*"])
+                
+                # Merge current role's permissions for specific routes
+                for route, methods in role_data["routes"].items():
+                    if route != "*":  # Skip wildcard during normal route addition
+                        permissions.setdefault(route, set()).update(methods)
+                
+                # Move to inherited role
+                current_role = role_data["inherits"]
+            else:
+                break
 
-    while current_role:
-        role_data = settings.permissions.get(scope, {}).get(current_role)
-        if role_data:
-            # Check for wildcard permissions
-            if "*" in role_data["routes"]:
-                # Add wildcard routes with all HTTP methods
-                permissions["*"] = set(role_data["routes"]["*"])
-            
-            # Merge current role's permissions for specific routes
-            for route, methods in role_data["routes"].items():
-                if route != "*":  # Skip wildcard during normal route addition
-                    permissions.setdefault(route, set()).update(methods)
-            
-            # Move to inherited role
-            current_role = role_data["inherits"]
-        else:
-            break
+        # Convert sets to lists for final output
+        return {route: list(methods) for route, methods in permissions.items()}
+        
+    except Exception as e:
+        logger.error(f"Error getting effective permissions for role {role}, scope {scope}: {e}")
+        return {}
 
-    # Convert sets to lists for final output
-    return {route: list(methods) for route, methods in permissions.items()}
+def get_permissions_from_cache() -> dict:
+    """
+    Get permissions from the cached dictionary instead of making database calls.
+    """
+    if not settings.permissions:
+        logger.warning("Permissions cache is empty. Consider calling build_permissions() or refresh_permissions_cache()")
+        return {}
+    return settings.permissions
 
+def get_role_permissions_from_cache(role_name: str, scope: str) -> dict:
+    """
+    Get specific role permissions from cache for a given scope.
+    
+    Args:
+        role_name: Name of the role (e.g., 'Admin', 'Member')
+        scope: Permission scope (e.g., 'organization', 'team')
+    
+    Returns:
+        Dictionary containing role permissions or empty dict if not found
+    """
+    permissions = get_permissions_from_cache()
+    return permissions.get(scope, {}).get(role_name, {})
 
+async def refresh_permissions_cache():
+    """
+    Refresh the permissions cache by reloading from database.
+    This can be called when permissions are updated without restarting the application.
+    """
+    logger.info("Refreshing permissions cache from database...")
+    await build_permissions()
+    logger.info("Permissions cache refreshed successfully")
+
+def clear_permissions_cache():
+    """
+    Clear the permissions cache. Useful for testing or forced reload scenarios.
+    """
+    settings.permissions = {}
+    logger.info("Permissions cache cleared")
 
 class PermissionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -152,45 +209,152 @@ async def initialize_roles():
     ]
     await db.close()
 
-def build_permissions():
-    settings.permissions = {
-    "organization": {
-        "Admin": {
-            "routes": {
-                "/rbac/teams/create": ["POST"],
-                "/rbac/teams/assign-user": ["POST"],
-                "/rbac/teams/remove-user": ["DELETE"],
-                "/rbac/teams": ["GET"]
+async def build_permissions():
+    """
+    Build permissions from database and cache them in settings.
+    This replaces the hardcoded permissions with dynamic database-driven permissions.
+    """
+    try:
+        db = await anext(get_db())
+        
+        # Get all roles with their permissions
+        result = await db.execute(
+            select(Role, Permission, RolePermission)
+            .join(RolePermission, Role.id == RolePermission.role_id)
+            .join(Permission, Permission.id == RolePermission.permission_id)
+        )
+        
+        role_permission_data = result.fetchall()
+        
+        # Build permissions structure
+        permissions_dict = defaultdict(lambda: defaultdict(lambda: {"routes": {}, "inherits": None}))
+        
+        for role, permission, role_permission in role_permission_data:
+            scope = role.scope
+            role_name = role.name
+            
+            # Parse permission name to extract route and methods
+            # Assuming permission names follow pattern like "teams:create:POST" or "teams:view:GET"
+            permission_parts = permission.name.split(":")
+            if len(permission_parts) >= 3:
+                resource = permission_parts[0]
+                action = permission_parts[1]
+                methods = permission_parts[2].split(",") if "," in permission_parts[2] else [permission_parts[2]]
+                
+                # Construct route path
+                route = f"/rbac/{resource}"
+                if action != "view":  # view is typically GET on base route
+                    route += f"/{action}"
+                
+                # Add methods to role permissions
+                if route not in permissions_dict[scope][role_name]["routes"]:
+                    permissions_dict[scope][role_name]["routes"][route] = []
+                
+                for method in methods:
+                    if method.upper() not in permissions_dict[scope][role_name]["routes"][route]:
+                        permissions_dict[scope][role_name]["routes"][route].append(method.upper())
+            
+            # Handle special super admin case
+            elif permission.name == "super_admin" or role.name == "super_admin":
+                permissions_dict["super_admin"]["routes"]["*"] = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        
+        # Convert defaultdict to regular dict for JSON serialization
+        settings.permissions = {
+            scope: {
+                role: dict(role_data) for role, role_data in roles.items()
+            } for scope, roles in permissions_dict.items()
+        }
+        
+        # Add fallback hardcoded permissions if no database permissions found
+        if not settings.permissions:
+            logger.warning("No permissions found in database, using fallback hardcoded permissions")
+            settings.permissions = {
+                "organization": {
+                    "Admin": {
+                        "routes": {
+                            "/rbac/teams/create": ["POST"],
+                            "/rbac/teams/assign-user": ["POST"],
+                            "/rbac/teams/remove-user": ["DELETE"],
+                            "/rbac/teams": ["GET"]
+                        },
+                        "inherits": None,
+                    },
+                    "Member": {
+                        "routes": {
+                            "/rbac/teams": ["GET"]
+                        },
+                        "inherits": None,
+                    },
+                },
+                "team": {
+                    "Lead": {
+                        "routes": {
+                            "/rbac/teams/assign-user": ["POST"],
+                            "/rbac/teams/remove-user": ["DELETE"],
+                            "/rbac/teams": ["GET"]
+                        },
+                        "inherits": None,
+                    },
+                    "Team_Member": {
+                        "routes": {
+                            "/rbac/teams": ["GET"]
+                        },
+                        "inherits": None
+                    },
+                },
+                "super_admin": {
+                    "routes": {
+                        "*": ["GET", "POST", "PUT", "DELETE", "PATCH"]
+                    },
+                    "inherits": None
+                }
+            }
+        
+        await db.close()
+        logger.info(f"Permissions cache built successfully with {len(settings.permissions)} scopes")
+        
+    except Exception as e:
+        logger.error(f"Error building permissions from database: {str(e)}")
+        # Fallback to hardcoded permissions on error
+        settings.permissions = {
+            "organization": {
+                "Admin": {
+                    "routes": {
+                        "/rbac/teams/create": ["POST"],
+                        "/rbac/teams/assign-user": ["POST"],
+                        "/rbac/teams/remove-user": ["DELETE"],
+                        "/rbac/teams": ["GET"]
+                    },
+                    "inherits": None,
+                },
+                "Member": {
+                    "routes": {
+                        "/rbac/teams": ["GET"]
+                    },
+                    "inherits": None,
+                },
             },
-            "inherits": None,
-        },
-        "Member": {
-            "routes": {
-                "/rbac/teams": ["GET"]
+            "team": {
+                "Lead": {
+                    "routes": {
+                        "/rbac/teams/assign-user": ["POST"],
+                        "/rbac/teams/remove-user": ["DELETE"],
+                        "/rbac/teams": ["GET"]
+                    },
+                    "inherits": None,
+                },
+                "Team_Member": {
+                    "routes": {
+                        "/rbac/teams": ["GET"]
+                    },
+                    "inherits": None
+                },
             },
-            "inherits": None,
-        },
-    },
-    "team": {
-        "Lead": {
-            "routes": {
-                "/rbac/teams/assign-user": ["POST"],
-                "/rbac/teams/remove-user": ["DELETE"],
-                "/rbac/teams": ["GET"]
-            },
-            "inherits": None,
-        },
-        "Team_Member": {
-            "routes": {
-                "/rbac/teams": ["GET"]
-            },
-            "inherits": None
-        },
-    },
-    "super_admin": {
-        "routes": {
-            "*": ["GET", "POST", "PUT", "DELETE", "PATCH"]
-        },
-        "inherits": None
-    }
-}
+            "super_admin": {
+                "routes": {
+                    "*": ["GET", "POST", "PUT", "DELETE", "PATCH"]
+                },
+                "inherits": None
+            }
+        }
+        logger.info("Using fallback hardcoded permissions due to database error")

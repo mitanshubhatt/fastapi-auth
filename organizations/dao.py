@@ -5,7 +5,7 @@ from typing import Optional
 
 from organizations.models import Organization, OrganizationUser
 from roles.models import Role
-from RBAC.schemas import OrganizationCreate
+from organizations.schemas import OrganizationCreate
 from auth.models import User
 
 class OrganizationDAO:
@@ -46,12 +46,4 @@ class OrganizationDAO:
 
     async def get_admin_role(self) -> Optional[Role]:
         result = await self.db.execute(select(Role).where(Role.name == "Admin"))
-        return result.scalars().first()
-
-class UserDAO:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_user_by_email(self, email: str) -> Optional[User]:
-        result = await self.db.execute(select(User).where(User.email == email))
         return result.scalars().first()

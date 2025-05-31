@@ -32,7 +32,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         user_result = await db.execute(select(User).where(User.email == email, User.verified== True))
         user = user_result.scalars().first()
         if user is None:
-            logging.error("User not found in database or is not verified")
+            logging.error("User not found or is not verified")
             raise credentials_exception
 
         return user
