@@ -6,15 +6,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from auth.dependencies import get_current_user
-from RBAC.models import OrganizationUser, TeamMember
+from organizations.models import OrganizationUser
+from teams.models import TeamMember
 from utils.custom_logger import logger
 from config.settings import settings
 
 from collections import defaultdict
 
 from sqlalchemy.orm import Session
-from RBAC.models import Role, RolePermission
-from permissions.models import Permission
+from roles.models import Role
+from permissions.models import Permission, RolePermission
 from db.pg_connection import get_db
 
 def get_effective_permissions(role: str, scope: str) -> dict:
@@ -195,28 +196,31 @@ async def initialize_roles():
     """
     Fetch roles from the database and store them in a global dictionary on server startup.
     """
-    db = await anext(get_db())
-    result = await db.execute(select(Role))
-    roles = result.scalars().all()
-    settings.roles = [
-        {
-            "id": role.id,
-            "name": role.name,
-            "description": role.description,
-            "scope": role.scope,
-        }
-        for role in roles
-    ]
-    await db.close()
+    db_gen = get_db()
+    db = await anext(db_gen)
+    try:
+        result = await db.execute(select(Role))
+        roles = result.scalars().all()
+        settings.roles = [
+            {
+                "id": role.id,
+                "name": role.name,
+                "description": role.description,
+                "scope": role.scope,
+            }
+            for role in roles
+        ]
+    finally:
+        await db.close()
 
 async def build_permissions():
     """
     Build permissions from database and cache them in settings.
     This replaces the hardcoded permissions with dynamic database-driven permissions.
     """
+    db_gen = get_db()
+    db = await anext(db_gen)
     try:
-        db = await anext(get_db())
-        
         # Get all roles with their permissions
         result = await db.execute(
             select(Role, Permission, RolePermission)
@@ -310,7 +314,6 @@ async def build_permissions():
                 }
             }
         
-        await db.close()
         logger.info(f"Permissions cache built successfully with {len(settings.permissions)} scopes")
         
     except Exception as e:
@@ -358,3 +361,5 @@ async def build_permissions():
             }
         }
         logger.info("Using fallback hardcoded permissions due to database error")
+    finally:
+        await db.close()

@@ -16,6 +16,7 @@ from auth.models import User, RefreshToken, AuthType
 from auth.schemas import UserCreate, UserRead, Token
 from auth.utils import get_password_hash, authenticate_user, send_email_verification, send_forgot_password_email
 from auth.dao import AuthDAO
+from organizations.dao import OrganizationDAO
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
 from utils.serializers import ResponseData
@@ -23,7 +24,6 @@ from utils.exceptions import (
     NotFoundError, ValidationError as CustomValidationError, UnauthorizedError, 
     ConflictError, InternalServerError, DatabaseError
 )
-from RBAC.utils import add_user_to_organization
 
 
 class AuthService:
@@ -31,6 +31,7 @@ class AuthService:
     
     def __init__(self, db: AsyncSession, redis_client: RedisClient):
         self.auth_dao = AuthDAO(db=db)
+        self.org_dao = OrganizationDAO(db=db)
         self.redis_client = redis_client
 
     async def handle_microsoft_login(self, request: Request):
@@ -147,7 +148,7 @@ class AuthService:
                         raise NotFoundError("Invalid invitation code", "INVALID_INVITATION")
                     
                     json_object = json.loads(redis_code_value)
-                    result = await add_user_to_organization(db_user.id, json_object.organization_id, json_object.role_id, self.auth_dao.db)
+                    result = await self.org_dao.add_user_to_organization(json_object.organization_id, db_user.id, json_object.role_id)
                     
                     return ResponseData(
                         success=True,

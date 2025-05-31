@@ -8,7 +8,7 @@ from organizations.schemas import OrganizationCreate, OrganizationRead
 from auth.models import User
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
-from RBAC.utils import send_invite_email
+from organizations.utils import send_invite_email
 from utils.serializers import ResponseData
 from utils.exceptions import (
     NotFoundError, ValidationError as CustomValidationError, ConflictError, 

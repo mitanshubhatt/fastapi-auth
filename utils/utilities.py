@@ -1,8 +1,8 @@
 import aiofiles
 from cryptography.hazmat.primitives import serialization
 
-from auth.strategies.jwt_auth import JWTAuth
-from auth.strategies.paseto_auth import PasetoAuth
+from auth.jwt_auth import JWTAuth
+from auth.paseto_auth import PasetoAuth
 from config.settings import settings
 
 async def get_auth_instance():

@@ -38,10 +38,10 @@ class RoleUpdate(BaseModel):
     scope: Optional[str] = Field(None) # Consider using Enum for scope
     description: Optional[str] = Field(None, max_length=255)
     slug: Optional[str] = Field(None, min_length=3, max_length=50)
-    # permissions_cache: Optional[str] = None # If you want to update this
 
     @field_validator('slug')
-    def validate_slug_format(self, v):
+    @classmethod
+    def validate_slug_format(cls, v):
         if v is not None: # Only validate if slug is provided
             if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', v):
                 raise ValueError("Slug must be lowercase alphanumeric with hyphens and no leading/trailing hyphens.")
