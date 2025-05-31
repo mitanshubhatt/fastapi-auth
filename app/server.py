@@ -7,6 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from auth.routes import router as auth_router
 from db.pg_connection import get_db, engine
 from config.settings import settings
+from utils.custom_logger import logger
 from utils.utilities import get_auth_instance
 from utils.permission_middleware import PermissionMiddleware, build_permissions, initialize_roles
 from db.redis_connection import RedisClient
@@ -84,7 +85,7 @@ async def lifespan(app: FastAPI):
         if hasattr(redis_client, 'redis') and redis_client.redis:
             await redis_client.redis.close()
     except Exception as e:
-        print(f"Error during shutdown: {e}")
+        logger.error(f"Error during shutdown: {e}")
 
 
 def create_app() -> FastAPI:
