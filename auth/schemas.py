@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator 
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -25,10 +25,12 @@ class UserCreate(BaseModel):
         return v
 
 class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     email: EmailStr
     first_name: str
     last_name: str
-    phone_number: str
+    phone_number: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

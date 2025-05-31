@@ -1,6 +1,6 @@
 # roles/schemas.py
 
-from pydantic import BaseModel, Field, validator, field_validator
+from pydantic import BaseModel, Field, validator, field_validator, ConfigDict
 from typing import Optional, List
 import re
 
@@ -49,10 +49,9 @@ class RoleUpdate(BaseModel):
 
 
 class RoleRead(RoleBase):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     # permissions_cache: Optional[str] = None # If you want to expose this
-
-    class Config:
-        orm_mode = True # For FastAPI to work with ORM models
 
 

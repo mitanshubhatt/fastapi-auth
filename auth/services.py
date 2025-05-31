@@ -1,10 +1,9 @@
 import json
 from typing import Optional
-from fastapi import HTTPException, status, Request, BackgroundTasks
+from fastapi import Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from datetime import timedelta
+from datetime import timedelta, timezone
 from jose import jwt, JWTError
 from datetime import datetime
 from sqlalchemy import update
@@ -30,11 +29,13 @@ class AuthService:
     """Facade service for authentication operations containing all business logic"""
     
     def __init__(self, db: AsyncSession, redis_client: RedisClient):
+        self.db = db
         self.auth_dao = AuthDAO(db=db)
         self.org_dao = OrganizationDAO(db=db)
         self.redis_client = redis_client
 
-    async def handle_microsoft_login(self, request: Request):
+    @staticmethod
+    async def handle_microsoft_login(request: Request):
         """Handle Microsoft OAuth login with business logic"""
         try:
             if not settings.oauth_microsoft:
@@ -56,12 +57,13 @@ class AuthService:
             logger.error(f"Microsoft OAuth setup error: {str(e)}")
             raise InternalServerError("Microsoft OAuth service is temporarily unavailable", "OAUTH_SETUP_ERROR")
 
-    async def handle_google_login(self, request: Request):
+    @staticmethod
+    async def handle_google_login(request: Request):
         """Handle Google OAuth login with business logic"""
         try:
             if not settings.oauth_google:
                 settings.oauth_google = OAuth()
-                
+
                 settings.oauth_google.register(
                     name='google',
                     client_id=settings.google_client_id,
@@ -71,14 +73,15 @@ class AuthService:
                         'scope': 'email openid profile',
                     }
                 )
-            
+
             redirect_uri = request.url_for('google_auth_callback')
             return await settings.oauth_google.google.authorize_redirect(request, redirect_uri)
         except Exception as e:
             logger.error(f"Google OAuth setup error: {str(e)}")
             raise InternalServerError("Google OAuth service is temporarily unavailable", "OAUTH_SETUP_ERROR")
 
-    async def handle_github_login(self, request: Request):
+    @staticmethod
+    async def handle_github_login(request: Request):
         """Handle GitHub OAuth login with business logic"""
         try:
             if not settings.oauth_github:
@@ -161,8 +164,10 @@ class AuthService:
                 
         except ValidationError as e:
             logger.error(f"Validation error during registration: {e.errors()}")
+            await self.db.rollback()
             raise CustomValidationError(f"Validation failed: {e.errors()}", "VALIDATION_ERROR")
         except Exception as e:
+            await self.db.rollback()
             if not isinstance(e, (ConflictError, NotFoundError, CustomValidationError, InternalServerError)):
                 logger.error(f"Unexpected error during user registration: {str(e)}")
                 raise InternalServerError("User registration failed", "REGISTRATION_ERROR")
@@ -199,8 +204,10 @@ class AuthService:
             ).model_dump()
             
         except UnauthorizedError:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token creation error: {str(e)}")
             raise InternalServerError("Authentication service temporarily unavailable", "TOKEN_CREATION_ERROR")
 
@@ -218,7 +225,7 @@ class AuthService:
 
         # Validate refresh token
         db_refresh_token = await self.auth_dao.get_refresh_token(refresh_token)
-        if not db_refresh_token or db_refresh_token.expires_at < datetime.utcnow():
+        if not db_refresh_token or db_refresh_token.expires_at < datetime.now(timezone.utc):
             logger.warning(f"Token refresh attempt with expired token for user: {username}")
             raise UnauthorizedError("Refresh token has expired", "EXPIRED_TOKEN")
 
@@ -242,6 +249,7 @@ class AuthService:
             ).model_dump()
             
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token refresh error: {str(e)}")
             raise InternalServerError("Token refresh failed", "TOKEN_REFRESH_ERROR")
 
@@ -259,8 +267,10 @@ class AuthService:
                 logger.warning("Token revocation attempt with non-existent token")
                 raise NotFoundError("Token not found", "TOKEN_NOT_FOUND")
         except NotFoundError:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token revocation error: {str(e)}")
             raise InternalServerError("Token revocation failed", "TOKEN_REVOCATION_ERROR")
 
@@ -303,8 +313,10 @@ class AuthService:
             ).model_dump()
             
         except (UnauthorizedError, InternalServerError):
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Google OAuth callback error: {str(e)}")
             raise InternalServerError("Google authentication failed", "GOOGLE_OAUTH_ERROR")
 
@@ -347,8 +359,10 @@ class AuthService:
             ).model_dump()
             
         except (UnauthorizedError, InternalServerError):
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Microsoft OAuth callback error: {str(e)}")
             raise InternalServerError("Microsoft authentication failed", "MICROSOFT_OAUTH_ERROR")
 
@@ -439,23 +453,23 @@ class AuthService:
             logger.error(f"Email verification error: {str(e)}")
             raise InternalServerError("Email verification failed", "EMAIL_VERIFICATION_ERROR")
 
-    async def initiate_password_reset(self, email: str, background_tasks: BackgroundTasks):
+    async def initiate_password_reset(self, user_id: int, background_tasks: BackgroundTasks):
         """Initiate password reset process"""
         try:
-            user = await self.auth_dao.get_user_by_email(email)
+            user = await self.auth_dao.get_user_by_id(user_id)
             if not user:
-                logger.warning(f"Password reset attempt for non-existent email: {email}")
+                logger.warning(f"Password reset attempt for non-existent email: {user_id}")
                 raise NotFoundError("User with this email does not exist", "USER_NOT_FOUND")
             
             background_tasks.add_task(
                 send_forgot_password_email,
                 redis_client=self.redis_client,
-                email=email,
+                email=user.email,
                 first_name=user.first_name,
                 title="forgot_password"
             )
             
-            logger.info(f"Password reset email sent to {email}.")
+            logger.info(f"Password reset email sent to {user_id}.")
             
             return ResponseData(
                 success=True,

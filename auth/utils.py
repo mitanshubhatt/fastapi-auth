@@ -80,6 +80,7 @@ async def send_forgot_password_email(redis_client, email, first_name, title):
         redis_client: Redis client for storing verification tokens.
         email: User's email address.
         first_name: User's first name.
+        title: Email title
 
     Raises:
         Exception: If there's an error sending the email.

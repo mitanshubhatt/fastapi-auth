@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from context.dao import ContextDAO
@@ -52,7 +52,7 @@ class ContextService:
                 "phone_number": user.phone_number,
                 "verified": user.verified,
                 "auth_type": user.auth_type.value if user.auth_type else "local",
-                "iat": datetime.utcnow().timestamp(),
+                "iat": datetime.now(timezone.utc).timestamp(),
             }
 
             # Add active organization context
@@ -94,7 +94,7 @@ class ContextService:
             return {
                 "sub": user_email,
                 "email": user_email,
-                "iat": datetime.utcnow().timestamp(),
+                "iat": datetime.now(timezone.utc).timestamp(),
             }
 
     async def _get_context_permissions(
