@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional
 from pyseto import Key, encode, decode
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,7 @@ class PasetoAuth(BaseAuth):
         - Any exceptions related to key creation or token encoding will be propagated.
         """
         key = Key.new(version=2, key=settings.paseto_private_key, type="public")
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
         data.update({"exp": expire.isoformat()})
         token = encode(key, json.dumps(data)).decode('utf-8')
         return token
@@ -66,7 +66,7 @@ class PasetoAuth(BaseAuth):
         )
         
         # Add expiration
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
         payload_data.update({"exp": expire.isoformat()})
         
         key = Key.new(version=2, key=settings.paseto_private_key, type="public")
@@ -97,7 +97,7 @@ class PasetoAuth(BaseAuth):
             token=token,
             token_type=TokenType(settings.auth_mode),
             nonce=nonce,
-            expires_at=datetime.utcnow() + expires_delta,
+            expires_at=datetime.now(timezone.utc) + expires_delta,
             revoked=False
         )
         db.add(db_refresh_token)
@@ -124,7 +124,7 @@ class PasetoAuth(BaseAuth):
             payload_json = json.loads(payload.payload.decode('utf-8'))
             if "exp" in payload_json:
                 exp = datetime.fromisoformat(payload_json["exp"])
-                if exp < datetime.utcnow():
+                if exp < datetime.now(timezone.utc):
                     logger.error("Token has expired.")
                     return None
             return payload_json

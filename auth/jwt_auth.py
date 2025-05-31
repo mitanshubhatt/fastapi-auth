@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 from jose import jwt
 from config.settings import settings
@@ -24,7 +24,7 @@ class JWTAuth(BaseAuth):
         - jwt.exceptions.PyJWTError: If there is an error in encoding the JWT.
         """
         to_encode = data.copy()
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
         to_encode.update({"exp": expire.isoformat()})
         encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
         return encoded_jwt
@@ -63,7 +63,7 @@ class JWTAuth(BaseAuth):
         )
         
         # Add expiration
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
         payload_data.update({"exp": expire.isoformat()})
         
         encoded_jwt = jwt.encode(payload_data, settings.secret_key, algorithm=settings.algorithm)
@@ -85,7 +85,7 @@ class JWTAuth(BaseAuth):
         - jwt.PyJWTError: If there is an error encoding the JWT token.
         - sqlalchemy.exc.SQLAlchemyError: If there is an error committing the token to the database.
         """
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
         token = jwt.encode(data, settings.secret_key, algorithm=settings.algorithm)
         db_refresh_token = RefreshToken(
             user_email=data["sub"],
@@ -117,7 +117,7 @@ class JWTAuth(BaseAuth):
             payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
             if "exp" in payload:
                 exp = datetime.fromisoformat(payload["exp"])
-                if exp < datetime.utcnow():
+                if exp < datetime.now(timezone.utc):
                     logger.error("Token has expired.")
                     return None
             return payload

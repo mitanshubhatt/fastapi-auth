@@ -134,4 +134,4 @@ async def github_callback(
 ):
     """Handle GitHub OAuth callback"""
     result = await auth_service.handle_github_callback(request)
-    return result 
+    return result

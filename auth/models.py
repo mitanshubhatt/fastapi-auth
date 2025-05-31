@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from db.pg_connection import Base
 from enum import Enum
 
@@ -39,7 +39,7 @@ class RefreshToken(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     token = Column(String, index=True)
-    expires_at = Column(DateTime, default=lambda: datetime.utcnow())
+    expires_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     revoked = Column(Boolean, default=False)
     token_type = Column(SQLAlchemyEnum(TokenType), default=TokenType.JWT)
     nonce = Column(String, nullable=True)

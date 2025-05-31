@@ -1,10 +1,9 @@
 import json
 from typing import Optional
-from fastapi import HTTPException, status, Request, BackgroundTasks
+from fastapi import Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from datetime import timedelta
+from datetime import timedelta, timezone
 from jose import jwt, JWTError
 from datetime import datetime
 from sqlalchemy import update
@@ -223,7 +222,7 @@ class AuthService:
 
         # Validate refresh token
         db_refresh_token = await self.auth_dao.get_refresh_token(refresh_token)
-        if not db_refresh_token or db_refresh_token.expires_at < datetime.utcnow():
+        if not db_refresh_token or db_refresh_token.expires_at < datetime.now(timezone.utc):
             logger.warning(f"Token refresh attempt with expired token for user: {username}")
             raise UnauthorizedError("Refresh token has expired", "EXPIRED_TOKEN")
 
