@@ -29,6 +29,9 @@ class UserRead(BaseModel):
     first_name: str
     last_name: str
     phone_number: str
+    
+    class Config:
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str

@@ -30,6 +30,7 @@ class AuthService:
     """Facade service for authentication operations containing all business logic"""
     
     def __init__(self, db: AsyncSession, redis_client: RedisClient):
+        self.db = db
         self.auth_dao = AuthDAO(db=db)
         self.org_dao = OrganizationDAO(db=db)
         self.redis_client = redis_client
@@ -161,8 +162,10 @@ class AuthService:
                 
         except ValidationError as e:
             logger.error(f"Validation error during registration: {e.errors()}")
+            await self.db.rollback()
             raise CustomValidationError(f"Validation failed: {e.errors()}", "VALIDATION_ERROR")
         except Exception as e:
+            await self.db.rollback()
             if not isinstance(e, (ConflictError, NotFoundError, CustomValidationError, InternalServerError)):
                 logger.error(f"Unexpected error during user registration: {str(e)}")
                 raise InternalServerError("User registration failed", "REGISTRATION_ERROR")
@@ -199,8 +202,10 @@ class AuthService:
             ).model_dump()
             
         except UnauthorizedError:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token creation error: {str(e)}")
             raise InternalServerError("Authentication service temporarily unavailable", "TOKEN_CREATION_ERROR")
 
@@ -242,6 +247,7 @@ class AuthService:
             ).model_dump()
             
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token refresh error: {str(e)}")
             raise InternalServerError("Token refresh failed", "TOKEN_REFRESH_ERROR")
 
@@ -259,8 +265,10 @@ class AuthService:
                 logger.warning("Token revocation attempt with non-existent token")
                 raise NotFoundError("Token not found", "TOKEN_NOT_FOUND")
         except NotFoundError:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Token revocation error: {str(e)}")
             raise InternalServerError("Token revocation failed", "TOKEN_REVOCATION_ERROR")
 
@@ -303,8 +311,10 @@ class AuthService:
             ).model_dump()
             
         except (UnauthorizedError, InternalServerError):
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Google OAuth callback error: {str(e)}")
             raise InternalServerError("Google authentication failed", "GOOGLE_OAUTH_ERROR")
 
@@ -347,8 +357,10 @@ class AuthService:
             ).model_dump()
             
         except (UnauthorizedError, InternalServerError):
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Microsoft OAuth callback error: {str(e)}")
             raise InternalServerError("Microsoft authentication failed", "MICROSOFT_OAUTH_ERROR")
 
