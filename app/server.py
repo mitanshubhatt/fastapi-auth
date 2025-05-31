@@ -4,17 +4,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from auth.router import router as auth_router
+from auth.routes import router as auth_router
 from db.pg_connection import get_db
 from config.settings import settings
 from utils.utilities import get_auth_instance
 from utils.permission_middleware import PermissionMiddleware, build_permissions, initialize_roles
 from db.redis_connection import RedisClient
 
-from RBAC.routes.organization import router as org_router
-from RBAC.routes.teams import router as teams_router
-from RBAC.routes.roles import router as roles_router
-from RBAC.routes.permissions import router as perm_router
+from organizations.routes import router as org_router
+from teams.routes import router as teams_router
+from roles.routes import router as roles_router
+from permissions.routes import router as perm_router
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class DBSessionMiddleware(BaseHTTPMiddleware):
