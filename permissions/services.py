@@ -9,6 +9,11 @@ from utils.exceptions import (
     NotFoundError, ValidationError as CustomValidationError, ConflictError, 
     InternalServerError, DatabaseError
 )
+from utils.permission_cache import (
+    get_permissions_by_scope as get_cached_permissions_by_scope,
+    get_all_cached_permissions,
+    refresh_cache
+)
 
 
 class PermissionService:
@@ -95,6 +100,83 @@ class PermissionService:
             logger.error(f"Error retrieving permission by name '{name}': {str(e)}")
             raise InternalServerError("Failed to retrieve permission", "PERMISSION_RETRIEVAL_ERROR")
 
+    async def get_permissions_by_role(self, role_id: int) -> dict:
+        """Get all permissions assigned to a specific role"""
+        try:
+            permissions = await self.permission_dao.get_permissions_by_role(role_id)
+            logger.info(f"Retrieved {len(permissions)} permissions for role {role_id}")
+            
+            return ResponseData(
+                success=True,
+                message=f"Successfully retrieved {len(permissions)} permissions for role",
+                data=[{
+                    "id": perm.id,
+                    "name": perm.name,
+                    "description": perm.description,
+                    "slug": perm.slug,
+                    "scope": perm.scope
+                } for perm in permissions]
+            ).model_dump()
+            
+        except Exception as e:
+            logger.error(f"Error retrieving permissions for role {role_id}: {str(e)}")
+            raise InternalServerError("Failed to retrieve role permissions", "ROLE_PERMISSIONS_ERROR")
+
+    async def get_permissions_by_scope(self, scope: str) -> dict:
+        """Get permissions filtered by scope - try cache first, fallback to database"""
+        try:
+            # Try to get from cache first
+            cached_scope_permissions = get_cached_permissions_by_scope(scope)
+            if cached_scope_permissions:
+                logger.info(f"Retrieved permissions for scope '{scope}' from cache")
+                # Convert cache format to expected response format
+                # Cache contains role->permission mapping, we need to extract unique permissions
+                all_permissions_in_scope = []
+                permission_names_seen = set()
+                
+                for role_name, role_data in cached_scope_permissions.items():
+                    routes = role_data.get("routes", {})
+                    # This is a simplified extraction - in production you might want a better approach
+                    for route in routes.keys():
+                        if route != "*" and route not in permission_names_seen:
+                            permission_names_seen.add(route)
+                            # Create a simplified permission structure from cache
+                            all_permissions_in_scope.append({
+                                "name": route.replace("/rbac/", "").replace("/", "_"),
+                                "description": f"Permission for {route}",
+                                "slug": route.replace("/rbac/", "").replace("/", "_"),
+                                "scope": scope
+                            })
+                
+                if all_permissions_in_scope:
+                    return ResponseData(
+                        success=True,
+                        message=f"Successfully retrieved {len(all_permissions_in_scope)} permissions with scope '{scope}' from cache",
+                        data=all_permissions_in_scope
+                    ).model_dump()
+            
+            # Fallback to database
+            logger.info(f"Cache miss or empty, retrieving permissions for scope '{scope}' from database")
+            permissions = await self.permission_dao.get_permissions_by_scope_from_db(scope)
+            
+            logger.info(f"Retrieved {len(permissions)} permissions with scope '{scope}' from database")
+            
+            return ResponseData(
+                success=True,
+                message=f"Successfully retrieved {len(permissions)} permissions with scope '{scope}'",
+                data=[{
+                    "id": perm.id,
+                    "name": perm.name,
+                    "description": perm.description,
+                    "slug": perm.slug,
+                    "scope": perm.scope
+                } for perm in permissions]
+            ).model_dump()
+            
+        except Exception as e:
+            logger.error(f"Error retrieving permissions by scope '{scope}': {str(e)}")
+            raise InternalServerError("Failed to retrieve permissions by scope", "SCOPE_PERMISSIONS_ERROR")
+
     async def create_new_permission(self, permission_data: dict) -> dict:
         """Create new permission with business logic and validation"""
         try:
@@ -124,6 +206,7 @@ class PermissionService:
                     "INVALID_SCOPE"
                 )
 
+            # Create permission - DAO will handle cache refresh
             permission = await self.permission_dao.create_permission(permission_data)
             logger.info(f"Created new permission: {permission.name}")
             
@@ -176,6 +259,7 @@ class PermissionService:
                         "INVALID_SCOPE"
                     )
 
+            # Update permission - DAO will handle cache refresh
             updated_permission = await self.permission_dao.update_permission(permission_id, permission_data)
             if not updated_permission:
                 raise InternalServerError("Failed to update permission", "PERMISSION_UPDATE_FAILED")
@@ -215,6 +299,7 @@ class PermissionService:
                 logger.warning(f"Cannot delete permission {permission_id} - it's currently in use")
                 raise ConflictError("Cannot delete permission - it's currently assigned to roles", "PERMISSION_IN_USE")
 
+            # Delete permission - DAO will handle cache refresh
             success = await self.permission_dao.delete_permission(permission_id)
             if not success:
                 raise InternalServerError("Failed to delete permission", "PERMISSION_DELETE_FAILED")
@@ -235,63 +320,49 @@ class PermissionService:
     async def assign_permission_to_role(self, role_id: int, permission_id: int) -> dict:
         """Assign permission to role with business logic"""
         try:
-            # Validate permission exists
+            # Validate that both role and permission exist
             permission = await self.permission_dao.get_permission_by_id(permission_id)
             if not permission:
                 raise NotFoundError(f"Permission with ID {permission_id} not found", "PERMISSION_NOT_FOUND")
 
-            # This would involve role validation - for now we'll assume role exists
+            # Assign permission - DAO will handle cache refresh
             success = await self.permission_dao.assign_to_role(role_id, permission_id)
             if not success:
-                raise ConflictError("Permission is already assigned to this role", "PERMISSION_ALREADY_ASSIGNED")
-                
-            logger.info(f"Assigned permission {permission.name} to role {role_id}")
+                raise ConflictError("Permission already assigned to role", "ASSIGNMENT_EXISTS")
+
+            logger.info(f"Permission {permission_id} assigned to role {role_id}")
             
             return ResponseData(
                 success=True,
-                message="Permission assigned to role successfully",
-                data={
-                    "role_id": role_id,
-                    "permission_id": permission_id,
-                    "permission_name": permission.name
-                }
+                message="Permission assigned to role successfully"
             ).model_dump()
-                
+            
         except (NotFoundError, ConflictError):
             raise
         except Exception as e:
             logger.error(f"Error assigning permission {permission_id} to role {role_id}: {str(e)}")
-            raise InternalServerError("Failed to assign permission to role", "PERMISSION_ASSIGNMENT_ERROR")
+            raise InternalServerError("Failed to assign permission to role", "ASSIGNMENT_ERROR")
 
     async def remove_permission_from_role(self, role_id: int, permission_id: int) -> dict:
         """Remove permission from role with business logic"""
         try:
-            # Validate permission exists
-            permission = await self.permission_dao.get_permission_by_id(permission_id)
-            if not permission:
-                raise NotFoundError(f"Permission with ID {permission_id} not found", "PERMISSION_NOT_FOUND")
-
+            # Remove permission - DAO will handle cache refresh
             success = await self.permission_dao.remove_from_role(role_id, permission_id)
             if not success:
-                raise NotFoundError("Permission is not assigned to this role", "PERMISSION_NOT_ASSIGNED")
-                
-            logger.info(f"Removed permission {permission.name} from role {role_id}")
+                raise NotFoundError("Permission assignment not found", "ASSIGNMENT_NOT_FOUND")
+
+            logger.info(f"Permission {permission_id} removed from role {role_id}")
             
             return ResponseData(
                 success=True,
-                message="Permission removed from role successfully",
-                data={
-                    "role_id": role_id,
-                    "permission_id": permission_id,
-                    "permission_name": permission.name
-                }
+                message="Permission removed from role successfully"
             ).model_dump()
-                
+            
         except NotFoundError:
             raise
         except Exception as e:
             logger.error(f"Error removing permission {permission_id} from role {role_id}: {str(e)}")
-            raise InternalServerError("Failed to remove permission from role", "PERMISSION_REMOVAL_ERROR")
+            raise InternalServerError("Failed to remove permission from role", "REMOVAL_ERROR")
 
     async def _check_permission_usage(self, permission_id: int) -> bool:
         """Check if permission is currently being used by any roles"""

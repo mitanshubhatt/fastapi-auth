@@ -15,10 +15,18 @@ class UserRead(BaseModel):
         from_attributes = True
 
 
-
 class TeamCreate(BaseModel):
     name: str
     organization_id: int
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -27,6 +35,7 @@ class TeamCreate(BaseModel):
 class TeamRead(BaseModel):
     id: int
     name: str
+    description: Optional[str] = None
     organization: OrganizationRead
 
     class Config:
@@ -46,3 +55,6 @@ class TeamMemberRead(BaseModel):
 class AssignUserToTeamRequest(BaseModel):
     user_email: EmailStr
     role_id: int
+
+    class Config:
+        from_attributes = True

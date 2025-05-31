@@ -55,7 +55,7 @@ def init_routers(app_: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    build_permissions()
+    await build_permissions()
     await initialize_roles()
     settings.auth_instance = await get_auth_instance()
     await RedisClient().connect()
