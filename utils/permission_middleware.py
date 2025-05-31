@@ -196,28 +196,31 @@ async def initialize_roles():
     """
     Fetch roles from the database and store them in a global dictionary on server startup.
     """
-    db = await anext(get_db())
-    result = await db.execute(select(Role))
-    roles = result.scalars().all()
-    settings.roles = [
-        {
-            "id": role.id,
-            "name": role.name,
-            "description": role.description,
-            "scope": role.scope,
-        }
-        for role in roles
-    ]
-    await db.close()
+    db_gen = get_db()
+    db = await anext(db_gen)
+    try:
+        result = await db.execute(select(Role))
+        roles = result.scalars().all()
+        settings.roles = [
+            {
+                "id": role.id,
+                "name": role.name,
+                "description": role.description,
+                "scope": role.scope,
+            }
+            for role in roles
+        ]
+    finally:
+        await db.close()
 
 async def build_permissions():
     """
     Build permissions from database and cache them in settings.
     This replaces the hardcoded permissions with dynamic database-driven permissions.
     """
+    db_gen = get_db()
+    db = await anext(db_gen)
     try:
-        db = await anext(get_db())
-        
         # Get all roles with their permissions
         result = await db.execute(
             select(Role, Permission, RolePermission)
@@ -311,7 +314,6 @@ async def build_permissions():
                 }
             }
         
-        await db.close()
         logger.info(f"Permissions cache built successfully with {len(settings.permissions)} scopes")
         
     except Exception as e:
@@ -359,3 +361,5 @@ async def build_permissions():
             }
         }
         logger.info("Using fallback hardcoded permissions due to database error")
+    finally:
+        await db.close()

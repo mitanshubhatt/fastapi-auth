@@ -1,8 +1,8 @@
-"""Change models for fast reads
+"""Add database models
 
-Revision ID: 043179d5cb1b
+Revision ID: 6e4d4847c5ef
 Revises: 
-Create Date: 2025-05-15 13:36:24.553456
+Create Date: 2025-05-31 20:00:35.207537
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '043179d5cb1b'
+revision: str = '6e4d4847c5ef'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -34,21 +34,25 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=True),
     sa.Column('description', sa.String(), nullable=True),
+    sa.Column('slug', sa.String(), nullable=True),
     sa.Column('scope', sa.Enum('organization', 'team', name='permission_scope'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_permissions_name'), 'permissions', ['name'], unique=True)
     op.create_index(op.f('ix_permissions_scope'), 'permissions', ['scope'], unique=False)
+    op.create_index(op.f('ix_permissions_slug'), 'permissions', ['slug'], unique=True)
     op.create_table('roles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=True),
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('scope', sa.Enum('organization', 'team', name='role_scope'), nullable=False),
+    sa.Column('slug', sa.String(), nullable=True),
     sa.Column('permissions_cache', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_roles_name'), 'roles', ['name'], unique=True)
     op.create_index(op.f('ix_roles_scope'), 'roles', ['scope'], unique=False)
+    op.create_index(op.f('ix_roles_slug'), 'roles', ['slug'], unique=True)
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=False),
@@ -180,9 +184,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    op.drop_index(op.f('ix_roles_slug'), table_name='roles')
     op.drop_index(op.f('ix_roles_scope'), table_name='roles')
     op.drop_index(op.f('ix_roles_name'), table_name='roles')
     op.drop_table('roles')
+    op.drop_index(op.f('ix_permissions_slug'), table_name='permissions')
     op.drop_index(op.f('ix_permissions_scope'), table_name='permissions')
     op.drop_index(op.f('ix_permissions_name'), table_name='permissions')
     op.drop_table('permissions')

@@ -5,7 +5,7 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from auth.routes import router as auth_router
-from db.pg_connection import get_db
+from db.pg_connection import get_db, engine
 from config.settings import settings
 from utils.utilities import get_auth_instance
 from utils.permission_middleware import PermissionMiddleware, build_permissions, initialize_roles
@@ -20,11 +20,23 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 class DBSessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        async for db in get_db():  # Use async for to iterate over the generator
-            request.state.db = db
+        db_session = None
+        try:
+            # Get database session using the dependency
+            db_gen = get_db()
+            db_session = await anext(db_gen)
+            request.state.db = db_session
             response = await call_next(request)
-            break  # Exit after getting the first value
-        return response
+            return response
+        except Exception as e:
+            # If there's an error and we have a session, roll it back
+            if db_session:
+                await db_session.rollback()
+            raise e
+        finally:
+            # Always close the session if we created one
+            if db_session:
+                await db_session.close()
 
 
 def make_middleware() -> list[Middleware]:
@@ -57,11 +69,22 @@ def init_routers(app_: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup
     await build_permissions()
     await initialize_roles()
     settings.auth_instance = await get_auth_instance()
     await RedisClient().connect()
     yield
+    # Shutdown
+    try:
+        # Dispose of the database engine to close all connections
+        await engine.dispose()
+        # Close Redis connection
+        redis_client = RedisClient()
+        if hasattr(redis_client, 'redis') and redis_client.redis:
+            await redis_client.redis.close()
+    except Exception as e:
+        print(f"Error during shutdown: {e}")
 
 
 def create_app() -> FastAPI:
