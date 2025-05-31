@@ -6,15 +6,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from auth.dependencies import get_current_user
-from RBAC.models import OrganizationUser, TeamMember
+from organizations.models import OrganizationUser
+from teams.models import TeamMember
 from utils.custom_logger import logger
 from config.settings import settings
 
 from collections import defaultdict
 
 from sqlalchemy.orm import Session
-from RBAC.models import Role, RolePermission
-from permissions.models import Permission
+from roles.models import Role
+from permissions.models import Permission, RolePermission
 from db.pg_connection import get_db
 
 def get_effective_permissions(role: str, scope: str) -> dict:

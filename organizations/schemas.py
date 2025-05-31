@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional
 
-from RBAC.schemas import UserRead, RoleRead
+from auth.schemas import UserRead
+from roles.schemas import RoleRead
 
 
 class OrganizationCreate(BaseModel):
