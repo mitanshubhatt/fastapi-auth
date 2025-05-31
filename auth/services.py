@@ -34,7 +34,8 @@ class AuthService:
         self.org_dao = OrganizationDAO(db=db)
         self.redis_client = redis_client
 
-    async def handle_microsoft_login(self, request: Request):
+    @staticmethod
+    async def handle_microsoft_login(request: Request):
         """Handle Microsoft OAuth login with business logic"""
         try:
             if not settings.oauth_microsoft:
@@ -56,12 +57,13 @@ class AuthService:
             logger.error(f"Microsoft OAuth setup error: {str(e)}")
             raise InternalServerError("Microsoft OAuth service is temporarily unavailable", "OAUTH_SETUP_ERROR")
 
-    async def handle_google_login(self, request: Request):
+    @staticmethod
+    async def handle_google_login(request: Request):
         """Handle Google OAuth login with business logic"""
         try:
             if not settings.oauth_google:
                 settings.oauth_google = OAuth()
-                
+
                 settings.oauth_google.register(
                     name='google',
                     client_id=settings.google_client_id,
@@ -71,14 +73,15 @@ class AuthService:
                         'scope': 'email openid profile',
                     }
                 )
-            
+
             redirect_uri = request.url_for('google_auth_callback')
             return await settings.oauth_google.google.authorize_redirect(request, redirect_uri)
         except Exception as e:
             logger.error(f"Google OAuth setup error: {str(e)}")
             raise InternalServerError("Google OAuth service is temporarily unavailable", "OAUTH_SETUP_ERROR")
 
-    async def handle_github_login(self, request: Request):
+    @staticmethod
+    async def handle_github_login(request: Request):
         """Handle GitHub OAuth login with business logic"""
         try:
             if not settings.oauth_github:
@@ -450,23 +453,23 @@ class AuthService:
             logger.error(f"Email verification error: {str(e)}")
             raise InternalServerError("Email verification failed", "EMAIL_VERIFICATION_ERROR")
 
-    async def initiate_password_reset(self, email: str, background_tasks: BackgroundTasks):
+    async def initiate_password_reset(self, user_id: int, background_tasks: BackgroundTasks):
         """Initiate password reset process"""
         try:
-            user = await self.auth_dao.get_user_by_email(email)
+            user = await self.auth_dao.get_user_by_id(user_id)
             if not user:
-                logger.warning(f"Password reset attempt for non-existent email: {email}")
+                logger.warning(f"Password reset attempt for non-existent email: {user_id}")
                 raise NotFoundError("User with this email does not exist", "USER_NOT_FOUND")
             
             background_tasks.add_task(
                 send_forgot_password_email,
                 redis_client=self.redis_client,
-                email=email,
+                email=user.email,
                 first_name=user.first_name,
                 title="forgot_password"
             )
             
-            logger.info(f"Password reset email sent to {email}.")
+            logger.info(f"Password reset email sent to {user_id}.")
             
             return ResponseData(
                 success=True,

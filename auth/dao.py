@@ -50,6 +50,15 @@ class AuthDAO:
             logger.error(f"Error getting user by email {email}: {str(e)}")
             raise
 
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
+        """Get user by email"""
+        try:
+            result = await self.db.execute(select(User).where(User.id == user_id))
+            return result.scalars().first()
+        except Exception as e:
+            logger.error(f"Error getting user by email {user_id}: {str(e)}")
+            raise
+
     async def create_user(self, user_data: dict) -> User:
         """Create a new user"""
         try:
