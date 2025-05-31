@@ -57,7 +57,7 @@ class ContextService:
 
             # Add active organization context
             if active_organization_id:
-                org_context = await self.dao.get_organization_context(user_email, active_organization_id)
+                org_context = await self.dao.get_organization_context(user.id, active_organization_id)
                 if org_context:
                     payload["active_organization"] = org_context
 
@@ -70,12 +70,12 @@ class ContextService:
             # Add context-specific permissions
             if active_organization_id or active_team_id:
                 permissions = await self._get_context_permissions(
-                    user_email, active_organization_id, active_team_id
+                    user.id, user_email, active_organization_id, active_team_id
                 )
                 payload["permissions"] = permissions
 
             # Add user's available organizations and teams (just IDs and names, not full data)
-            user_orgs = await self.dao.get_user_organizations(user_email)
+            user_orgs = await self.dao.get_user_organizations(user.id)
             user_teams = await self.dao.get_user_teams(user_email, active_organization_id)
             
             payload["available_organizations"] = user_orgs
@@ -99,7 +99,8 @@ class ContextService:
 
     async def _get_context_permissions(
         self, 
-        user_email: str, 
+        user_id: int,
+        user_email: str,
         organization_id: Optional[int] = None, 
         team_id: Optional[int] = None
     ) -> List[str]:
@@ -109,7 +110,7 @@ class ContextService:
         try:
             # Get permissions from organization role
             if organization_id:
-                org_perms = await self.dao.get_organization_permissions(user_email, organization_id)
+                org_perms = await self.dao.get_organization_permissions(user_id, organization_id)
                 permissions.update(org_perms)
             
             # Get permissions from team role (may override or add to org permissions)
@@ -123,13 +124,13 @@ class ContextService:
             logger.error(f"Error getting context permissions: {str(e)}")
             return []
 
-    async def validate_user_access_to_organization(self, user_email: str, organization_id: int) -> bool:
+    async def validate_user_access_to_organization(self, user_id: int, organization_id: int) -> bool:
         """Validate if user has access to organization"""
-        return await self.dao.validate_user_organization_access(user_email, organization_id)
+        return await self.dao.validate_user_organization_access(user_id, organization_id)
 
-    async def validate_user_access_to_team(self, user_email: str, team_id: int) -> bool:
+    async def validate_user_access_to_team(self, user_id: int, team_id: int) -> bool:
         """Validate if user has access to team"""
-        return await self.dao.validate_user_team_access(user_email, team_id)
+        return await self.dao.validate_user_team_access(user_id, team_id)
 
     async def validate_team_belongs_to_organization(self, team_id: int, organization_id: int) -> bool:
         """Validate if team belongs to the specified organization"""
@@ -177,11 +178,16 @@ class ContextService:
             logger.error(f"Error getting current context: {str(e)}")
             return CurrentContextResponse()
 
-    async def get_available_contexts(self, user_email: str) -> AvailableContextsResponse:
+    async def get_available_contexts(self, user_id: int) -> AvailableContextsResponse:
         """Get all available contexts for a user"""
         try:
-            organizations = await self.dao.get_user_organizations(user_email)
-            teams = await self.dao.get_user_teams(user_email)
+            # Get user to get email for teams
+            user = await self.dao.get_user_by_id(user_id)
+            if not user:
+                return AvailableContextsResponse(organizations=[], teams=[])
+
+            organizations = await self.dao.get_user_organizations(user_id)
+            teams = await self.dao.get_user_teams(user.email)
 
             return AvailableContextsResponse(
                 organizations=organizations,
