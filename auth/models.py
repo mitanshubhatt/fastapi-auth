@@ -38,7 +38,7 @@ class RefreshToken(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'))
-    token = Column(String, unique=True, index=True)
+    token = Column(String, index=True)
     expires_at = Column(DateTime, default=lambda: datetime.utcnow())
     revoked = Column(Boolean, default=False)
     token_type = Column(SQLAlchemyEnum(TokenType), default=TokenType.JWT)
