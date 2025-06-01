@@ -4,7 +4,7 @@ from typing import List
 
 from organizations.dao import OrganizationDAO
 from auth.dao import UserDAO
-from organizations.schemas import OrganizationCreate, OrganizationRead
+from organizations.schemas import OrganizationCreate, OrganizationRead, OrganizationUserRead
 from auth.models import User
 from utils.custom_logger import logger
 from db.redis_connection import RedisClient
@@ -26,7 +26,6 @@ class OrganizationService:
     ) -> dict:
         try:
             db_org = await self.organization_dao.create_organization(org_create_data)
-
             admin_role = await self.organization_dao.get_admin_role()
             if not admin_role:
                 logger.error("Admin role not found during organization creation.")
@@ -77,12 +76,21 @@ class OrganizationService:
     async def get_user_organizations(self, current_user: User) -> dict:
         """Get all organizations for the current user"""
         try:
-            # This would require a method in DAO to get organizations by user
-            # For now, returning a placeholder
+            # Get user's organization memberships with organization and role details
+            user_orgs = await self.organization_dao.get_user_organizations(current_user.id)
+            
+            # Transform the data to match OrganizationUserRead schema
+            organizations_data = []
+            for org_user in user_orgs:
+                org_user_data = OrganizationUserRead.model_validate(org_user)
+                organizations_data.append(org_user_data.model_dump())
+            
+            logger.info(f"Retrieved {len(organizations_data)} organizations for user {current_user.email}")
+            
             return ResponseData(
                 success=True,
                 message="User organizations retrieved successfully",
-                data=[]
+                data=organizations_data
             ).model_dump()
             
         except Exception as e:
@@ -99,12 +107,34 @@ class OrganizationService:
             if not user_membership:
                 raise UnauthorizedError("Access denied to this organization", "ACCESS_DENIED")
             
-            # This would require a method in DAO to get all organization members
-            # For now, returning a placeholder
+            # Get all organization members
+            members = await self.organization_dao.get_organization_members(organization_id)
+            
+            # Transform the data to match the expected schema format
+            members_data = []
+            for member in members:
+                member_data = {
+                    "id": member.id,
+                    "user": {
+                        "id": member.user.id,
+                        "email": member.user.email,
+                        "first_name": member.user.first_name,
+                        "last_name": member.user.last_name,
+                        "phone_number": member.user.phone_number
+                    },
+                    "role": {
+                        "id": member.role.id,
+                        "name": member.role.name
+                    }
+                }
+                members_data.append(member_data)
+            
+            logger.info(f"Retrieved {len(members_data)} members for organization {organization_id}")
+            
             return ResponseData(
                 success=True,
                 message="Organization members retrieved successfully",
-                data=[]
+                data=members_data
             ).model_dump()
             
         except UnauthorizedError:
