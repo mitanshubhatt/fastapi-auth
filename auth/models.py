@@ -28,7 +28,7 @@ class User(Base):
     auth_type = Column(SQLAlchemyEnum(AuthType), default=AuthType.LOCAL)
     verified = Column(Boolean, default=False)
 
-    refresh_tokens = relationship("RefreshToken", back_populates="user", foreign_keys="[RefreshToken.user_email]")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", foreign_keys="[RefreshToken.user_id]")
     organization_users = relationship("OrganizationUser", back_populates="user", cascade="all, delete-orphan")
     team_members = relationship("TeamMember", back_populates="user")
     user_roles = relationship("UserRole", back_populates="user")

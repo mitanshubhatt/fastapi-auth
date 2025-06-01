@@ -70,10 +70,15 @@ class ContextDAO:
             return None
 
     async def get_team_context(self, user_email: str, team_id: int) -> Optional[Dict[str, Any]]:
-        """Get team context for the user - keeps email since TeamMember uses email"""
+        """Get team context for the user"""
         try:
+            # Get user by email first to get user_id
+            user = await self.get_user_by_email(user_email)
+            if not user:
+                return None
+                
             team_query = select(TeamMember).where(
-                TeamMember.user_email == user_email,
+                TeamMember.user_id == user.id,
                 TeamMember.team_id == team_id
             ).options(
                 selectinload(TeamMember.team),
@@ -133,10 +138,15 @@ class ContextDAO:
             return []
 
     async def get_team_permissions(self, user_email: str, team_id: int) -> List[str]:
-        """Get permissions from team role - keeps email since TeamMember uses email"""
+        """Get permissions from team role"""
         try:
+            # Get user by email first to get user_id
+            user = await self.get_user_by_email(user_email)
+            if not user:
+                return []
+                
             team_query = select(TeamMember).where(
-                TeamMember.user_email == user_email,
+                TeamMember.user_id == user.id,
                 TeamMember.team_id == team_id
             ).options(selectinload(TeamMember.role))
             
@@ -191,10 +201,15 @@ class ContextDAO:
             return []
 
     async def get_user_teams(self, user_email: str, organization_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get all teams for a user, optionally filtered by organization - keeps email since TeamMember uses email"""
+        """Get all teams for a user, optionally filtered by organization"""
         try:
+            # Get user by email first to get user_id
+            user = await self.get_user_by_email(user_email)
+            if not user:
+                return []
+                
             team_query = select(TeamMember).where(
-                TeamMember.user_email == user_email
+                TeamMember.user_id == user.id
             ).options(selectinload(TeamMember.team))
             
             if organization_id:
@@ -232,15 +247,10 @@ class ContextDAO:
             return False
 
     async def validate_user_team_access(self, user_id: int, team_id: int) -> bool:
-        """Check if user has access to team - converts user_id to email since TeamMember uses email"""
+        """Check if user has access to team"""
         try:
-            # Get user email from user_id
-            user = await self.get_user_by_id(user_id)
-            if not user:
-                return False
-
             team_query = select(TeamMember).where(
-                TeamMember.user_email == user.email,
+                TeamMember.user_id == user_id,
                 TeamMember.team_id == team_id
             )
             
