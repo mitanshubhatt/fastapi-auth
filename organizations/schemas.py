@@ -1,7 +1,7 @@
 import re
 
 from pydantic import BaseModel, model_validator, ConfigDict
-from typing import Optional
+from typing import Optional, List
 
 from auth.schemas import UserRead
 from roles.schemas import RoleRead
@@ -39,7 +39,10 @@ class OrganizationRead(BaseModel):
     
     id: int
     name: str
-    creation_date: int
+    creation_epoch: int
+    slug: str
+    user_count: int
+    team_count: int
 
 
 class OrganizationUserRead(BaseModel):

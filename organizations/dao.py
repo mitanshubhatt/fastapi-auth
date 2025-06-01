@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, List
 
 from organizations.models import Organization, OrganizationUser
 from roles.models import Role
@@ -43,6 +43,31 @@ class OrganizationDAO:
             .where(OrganizationUser.user_id == user_id, OrganizationUser.organization_id == organization_id)
         )
         return result.scalars().first()
+
+    async def get_user_organizations(self, user_id: int) -> List[OrganizationUser]:
+        """Get all organizations for a user with organization and role details"""
+        result = await self.db.execute(
+            select(OrganizationUser)
+            .options(
+                selectinload(OrganizationUser.organization),
+                selectinload(OrganizationUser.role),
+                selectinload(OrganizationUser.user)
+            )
+            .where(OrganizationUser.user_id == user_id)
+        )
+        return result.scalars().all()
+
+    async def get_organization_members(self, organization_id: int) -> List[OrganizationUser]:
+        """Get all members of an organization with user and role details"""
+        result = await self.db.execute(
+            select(OrganizationUser)
+            .options(
+                selectinload(OrganizationUser.user),
+                selectinload(OrganizationUser.role)
+            )
+            .where(OrganizationUser.organization_id == organization_id)
+        )
+        return result.scalars().all()
 
     async def get_admin_role(self) -> Optional[Role]:
         result = await self.db.execute(select(Role).where(Role.name == "Admin"))
