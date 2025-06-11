@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 class DBSessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         db_session = None
+        db_gen = None
         try:
             # Get database session using the dependency
             db_gen = get_db()
@@ -38,6 +39,8 @@ class DBSessionMiddleware(BaseHTTPMiddleware):
             # Always close the session if we created one
             if db_session:
                 await db_session.close()
+            if db_gen is not None:
+                await db_gen.aclose()
 
 
 def make_middleware() -> list[Middleware]:
